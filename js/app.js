@@ -16,7 +16,7 @@
     ['/:r/review', 'reviewQueue'], ['/:r/homework', 'reviewQueue'], ['/:r/review/:id', 'reviewItem'], ['/:r/student/:id', 'studentCard'],
     ['/:r/axon', 'axon'], ['/:r/axon/history', 'axonHistory'], ['/:r/axon/:id', 'axon'],
     ['/:r/settings', 'settings'],
-    ['/:r/people', 'wave2'], ['/:r/axon-quality', 'wave2'], ['/:r/materials', 'wave2'],
+    ['/a/people', 'people'], ['/a/people/:id', 'person'], ['/a/streams', 'streams'], ['/a/axon-quality', 'axq'], ['/a/axon-quality/:u/:c', 'axqConv'], ['/:r/materials', 'wave2'],
     ['/sys/:kind', 'sys'],
   ].forEach(([p, s]) => R.add(p, s));
 

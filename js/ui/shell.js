@@ -8,7 +8,7 @@
   const NAV = {
     s: [['home', 'home', 'Главная'], ['course', 'book', 'Курс'], ['chat', 'chat', 'Чат', 'chat'], ['homework', 'hw', 'Домашки', 'hw'], ['axon', 'axon', 'AXON'], ['library', 'library', 'Библиотека', null, 'side']],
     t: [['home', 'home', 'Главная'], ['review', 'inbox', 'Проверка', 'review'], ['chat', 'chat', 'Чат', 'chat'], ['course', 'book', 'Курс'], ['axon', 'axon', 'AXON'], ['personal', 'users', 'Личные ученики', 'personal', 'side'], ['library', 'library', 'Библиотека', null, 'side']],
-    a: [['home', 'grid', 'Сводка'], ['homework', 'inbox', 'Домашки', 'review'], ['chat', 'chat', 'Чаты', 'chat'], ['people', 'users', 'Люди', null, 'side'], ['axon-quality', 'axon', 'Качество AXON', null, 'side'], ['materials', 'folder', 'Материалы', null, 'side']],
+    a: [['home', 'grid', 'Сводка'], ['people', 'users', 'Люди'], ['homework', 'inbox', 'Домашки', 'review'], ['chat', 'chat', 'Чаты', 'chat'], ['axon-quality', 'axon', 'Качество AXON'], ['streams', 'layers', 'Потоки', null, 'side'], ['materials', 'folder', 'Материалы', null, 'side']],
   };
   const ROLE_LABEL = { student: 'Ученик', teacher: 'Преподаватель', admin: 'Админ' };
   const prefix = (role) => ({ student: 's', teacher: 't', admin: 'a' }[role]);

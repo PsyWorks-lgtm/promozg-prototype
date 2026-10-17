@@ -61,7 +61,7 @@
   S.notFound = { view: () => html`${PM.ui.header({ title: 'Не найдено', back: '#/' })}<div class="page">${PM.ui.empty({ icon: 'search', title: 'Такой страницы нет', text: 'Возможно, ссылка устарела.', action: html`<a class="btn primary" href="#/">На главную</a>` })}</div>` };
   S.wave2 = {
     nav: (r) => r.path.split('/')[2],
-    view: (ctx) => html`${PM.ui.header({ title: { people: 'Люди и доступы', 'axon-quality': 'Качество AXON', materials: 'Материалы' }[ctx.route.path.split('/')[2]] || 'Скоро' })}<div class="page">${PM.ui.empty({ icon: 'clock', title: 'Во второй волне прототипа', text: 'Экран описан в карте (раздел 2.3) и появится в следующей версии. Сейчас можно посмотреть «Сводку», «Домашки» и «Чаты».' })}</div>`,
+    view: (ctx) => html`${PM.ui.header({ title: { people: 'Люди и доступы', 'axon-quality': 'Качество AXON', materials: 'Материалы' }[ctx.route.path.split('/')[2]] || 'Скоро' })}<div class="page">${PM.ui.empty({ icon: 'clock', title: 'Во второй волне прототипа', text: 'Экран описан в карте (раздел 2.3) и появится в следующей версии. Уже готовы «Сводка», «Люди», «Потоки», «Домашки», «Чаты» и «Качество AXON».' })}</div>`,
   };
 
   /* Профиль и настройки: тема и уведомления (C-02, T-06) */

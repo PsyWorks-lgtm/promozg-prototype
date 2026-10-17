@@ -360,6 +360,6 @@
     chatRooms, chatHistory, chatSend, chatMarkRead, chatPin, chatReact, getMessage, simulateIncoming,
     axonList, axonConv, axonMemory, axonNew, axonAddUser, axonAsk,
     library, libraryItem, home, notifState, setNotif, demoSubmit, demoIncoming,
-    get db() { return db; },
+    save, get db() { return db; },
   };
 })(window.PM);
