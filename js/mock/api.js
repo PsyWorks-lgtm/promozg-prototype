@@ -21,7 +21,8 @@
   const wait = (ms) => new Promise((r) => setTimeout(r, flags.slow ? ms * 4 : ms));
   const lat = () => wait(180 + Math.random() * 260);
   const clone = (o) => JSON.parse(JSON.stringify(o));
-  class ApiError extends Error { constructor(status, message) { super(message); this.status = status; } }
+  class ApiError extends Error { constructor(status, message, code) { super(message); this.status = status; this.code = code || null; } }
+  const unpublishedErr = () => new ApiError(404, 'Материал пока не опубликован', 'unpublished');
 
   const user = (id) => db.users.find((u) => u.id === id);
   const stream = (code) => db.streams.find((s) => s.code === code);
@@ -75,10 +76,18 @@
     await lat();
     const m = db.modules.find((x) => x.n === n);
     if (!m) throw new ApiError(404, 'Модуль не найден');
-    if (!m.published) throw new ApiError(404, 'Материал пока не опубликован');
+    if (!m.published) throw unpublishedErr();
     return { ...m, hw: m.hasHomework ? hwStatus(uid, n) : 'none', sections: PM.content.moduleSections(n) };
   }
-  async function book() { await lat(); return { title: 'АНП 2.0', chapters: PM.content.bookChapters(db.modules) }; }
+  async function book(ch) {
+    await lat();
+    const chapters = PM.content.bookChapters(db.modules).map((c) => {
+      const m = c.module && db.modules.find((x) => x.n === c.module);
+      return m && !m.published ? { ...c, unpublished: true, sections: [] } : c;
+    });
+    if (ch != null && chapters[ch] && chapters[ch].unpublished) throw unpublishedErr();
+    return { title: 'АНП 2.0', chapters };
+  }
   /* Место чтения — только на этом устройстве (localStorage браузера), на сервер не уходит и не синхронизируется */
   const DEV = 'promozg-proto-device-reading-v1';
   const devGet = () => { try { const v = JSON.parse(localStorage.getItem(DEV)); if (v) return v; } catch (_) { /* пусто */ } return { alina: { kind: 'module', n: 3, part: 2, progress: 0.4 }, alinaBook: { ch: 4, progress: 0.31 } }; };
@@ -100,7 +109,8 @@
   async function homework(uid, n) {
     await lat();
     const m = db.modules.find((x) => x.n === n);
-    if (!m || !m.published) throw new ApiError(404, 'Материал пока не опубликован');
+    if (!m) throw new ApiError(404, 'Модуль не найден');
+    if (!m.published) throw unpublishedErr();
     const it = db.homework.find((h) => h.student === uid && h.module === n);
     if (it && it.reviewedAt && !it.seen) { it.seen = true; save(); emit('counts', {}); }
     return { module: m, def: db.homeworkDefs[n] || null, item: it ? clone(it) : null, draft: clone((db.drafts[uid] || {})[n] || null), reviewer: it && it.reviewer ? user(it.reviewer).name : null };

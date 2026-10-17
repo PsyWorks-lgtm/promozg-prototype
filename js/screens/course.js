@@ -87,7 +87,7 @@
   }
 
   S.module = {
-    nav: () => 'course', tabbar: false,
+    nav: () => 'course', tabbar: false, title: 'Модуль',
     skeleton: () => html`<div class="reader"><header class="topbar readbar"><span class="iconbtn"></span></header><div class="reader-body"><article class="paper">${PM.dom.raw(Array.from({ length: 8 }, (_, i) => `<span class="sk" style="display:block;height:16px;margin:14px 0;width:${90 - (i % 3) * 12}%"></span>`).join(''))}</article></div></div>`,
     load: (ctx) => PM.api.module(ctx.me.id, +ctx.route.params.n),
     view: (ctx) => {
@@ -107,12 +107,14 @@
   S.book = {
     nav: () => 'course', tabbar: false,
     skeleton: S.module.skeleton,
-    load: () => PM.api.book(),
+    load: (ctx) => PM.api.book(+(ctx.route.query.ch || 1)),
+    title: 'Книга',
+    unpublishedBack: (ctx, p) => ({ href: `#/${p}/book?ch=0&toc=1`, label: 'К оглавлению' }),
     view: (ctx) => {
       const b = ctx.data; const ch = +(ctx.route.query.ch || 1); const p = P();
       const chapter = b.chapters[Math.min(ch, b.chapters.length - 1)];
-      const toc = html`<div class="caps toc-h">Содержание</div>${b.chapters.map((c, i) => html`<a href="#/${p}/book?ch=${i}" class="${i === ch ? 'on ch' : 'ch'}" ${i === ch ? html`aria-current="page"` : ''}>${c.title}</a>${i === ch ? c.sections.map((s) => html`<a class="lvl2" href="#${s.id}" data-goto="${s.id}">${s.title}</a>`) : ''}`)}`;
-      const nav = html`<div class="paper-end row wrap" style="gap:10px">${ch > 0 ? html`<a class="btn secondary" href="#/${p}/book?ch=${ch - 1}">${icon('left', 'sm')} Предыдущая глава</a>` : ''}${ch < b.chapters.length - 1 ? html`<a class="btn secondary" href="#/${p}/book?ch=${ch + 1}">Следующая глава ${icon('right', 'sm')}</a>` : ''}<p class="t1 ink3" style="width:100%">Текст-заглушка. Текста книги в прототипе нет.</p></div>`;
+      const toc = html`<div class="caps toc-h">Содержание</div>${b.chapters.map((c, i) => c.unpublished ? html`<span class="ch ink3">${c.title} · скоро</span>` : html`<a href="#/${p}/book?ch=${i}" class="${i === ch ? 'on ch' : 'ch'}" ${i === ch ? html`aria-current="page"` : ''}>${c.title}</a>${i === ch ? c.sections.map((s) => html`<a class="lvl2" href="#${s.id}" data-goto="${s.id}">${s.title}</a>`) : ''}`)}`;
+      const nav = html`<div class="paper-end row wrap" style="gap:10px">${ch > 0 ? html`<a class="btn secondary" href="#/${p}/book?ch=${ch - 1}">${icon('left', 'sm')} Предыдущая глава</a>` : ''}${ch < b.chapters.length - 1 && !b.chapters[ch + 1].unpublished ? html`<a class="btn secondary" href="#/${p}/book?ch=${ch + 1}">Следующая глава ${icon('right', 'sm')}</a>` : ''}<p class="t1 ink3" style="width:100%">Текст-заглушка. Текста книги в прототипе нет.</p></div>`;
       const secs = chapter.sections.map((s, i) => ({ ...s, h1: i === 0 ? chapter.title : null }));
       return reader({ ctx, title: 'АНП 2.0', kicker: 'Книга курса · глава ' + ch, toc, sections: secs, footer: nav, backFallback: `#/${p}/course`,
         extraActions: html`<button class="iconbtn" data-act="pdf" aria-label="Скачать PDF">${icon('download')}</button>` });
@@ -121,6 +123,7 @@
       const ch = +(ctx.route.query.ch || 1);
       const off = on(root, 'click', '[data-act="pdf"]', () => PM.shell.toast('В прототипе PDF не скачивается'));
       const offR = mountReader(root, { onProgress: (pr) => PM.api.saveBookReading(ctx.me.id, { ch, progress: pr }) });
+      if (ctx.route.query.toc) { const t = root.querySelector('[data-act="toc"]'); if (t && t.offsetParent) t.click(); }
       return () => { off(); offR(); };
     },
   };

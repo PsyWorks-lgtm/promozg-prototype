@@ -42,7 +42,7 @@
   const same = (a, b) => JSON.stringify(a || {}) === JSON.stringify(b || {});
 
   S.hwForm = {
-    nav: () => 'homework', tabbar: false,
+    nav: () => 'homework', tabbar: false, title: 'Домашка',
     skeleton: () => html`${ui.header({ title: 'Домашка', back: '#/s/homework' })}<div class="page narrow">${ui.skeletonList(4)}</div>`,
     load: (ctx) => PM.api.homework(ctx.me.id, +ctx.route.params.n),
     view: (ctx) => {

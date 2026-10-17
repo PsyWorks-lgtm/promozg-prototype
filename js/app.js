@@ -62,6 +62,15 @@
       data = screen.load ? await screen.load(ctx) : null;
     } catch (e) {
       if (my !== seq) return;
+      if (e && e.status === 404 && e.code === 'unpublished') {
+        /* неопубликованный модуль по прямой ссылке — обычное пустое состояние, без «Повторить» */
+        const pre = PM.shell.prefix(ctx.me.role);
+        const back = screen.unpublishedBack ? screen.unpublishedBack(ctx, pre) : { href: `#/${pre}/course`, label: 'К модулям' };
+        setHTML(view, html`${PM.ui.header({ title: screen.title || 'Материал', back: back.href })}<div class="page">${PM.ui.empty({ icon: 'clock', title: 'Материал пока не опубликован', action: html`<a class="btn secondary" href="${back.href}">${back.label}</a>` })}</div>`);
+        bindCommon(view);
+        current.cleanup = null;
+        return;
+      }
       setHTML(view, html`${screen.header ? screen.header(ctx) : PM.ui.header({ title: screen.title || 'Ошибка', back: '#/' })}<div class="page">${PM.ui.errorBox(e.message || 'Ошибка')}</div>`);
       const off = on(view, 'click', '[data-act="retry"]', () => { off(); render(); });
       bindCommon(view);

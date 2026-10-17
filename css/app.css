@@ -425,3 +425,4 @@ blockquote.reply-q,.reply-q{display:block;margin:4px 0;padding:6px 10px;border-l
 .react,.react.ro{height:44px;min-width:44px;padding:0 8px;border:8px solid transparent;border-radius:22px;background:var(--surface-1);background-clip:padding-box;box-shadow:inset 0 0 0 1px var(--border);display:inline-flex;align-items:center;justify-content:center}
 .react.on{border-color:transparent;background:var(--accent-soft);background-clip:padding-box;box-shadow:inset 0 0 0 1px var(--accent)}
 .react::after{content:none}
+.toc span.ch{display:block;padding:8px 12px;min-height:36px;color:var(--text-3)}
