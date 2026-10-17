@@ -33,7 +33,7 @@
       U('timur', 't.akopov', 'Тимур Акопов', 'student', [S3], { lastSeen: ago(60 * 30) }),
       U('vera', 'v.ryabova', 'Вера Рябова', 'student', [S2], { active: false, lastSeen: ago(60 * 24 * 95) }),
       U('belova', 'n.belova', 'Нина Белова', 'teacher', [S2, S3], { lastSeen: ago(10) }),
-      U('kim', 'o.kim', 'Олег Ким', 'teacher', [S2, S3], { lastSeen: ago(60 * 24 * 2) }),
+      U('kim', 'g.kim', 'Глеб Ким', 'teacher', [S2, S3], { lastSeen: ago(60 * 24 * 2) }),
       U('sokolova', 'e.sokolova', 'Елена Соколова', 'teacher', [S3], { lastSeen: ago(60 * 24 * 5) }),
       U('lebedev', 'd.lebedev', 'Денис Лебедев', 'teacher', [S2], { lastSeen: ago(60 * 24 * 1) }),
       U('orlova', 'a.orlova', 'Анна Орлова', 'teacher', [S3], { lastSeen: ago(60 * 24 * 8) }),
@@ -123,8 +123,8 @@
     const tail = common.slice(-12);
     tail.forEach((m, i) => { m.at = ago(12 * 6 - i * 6); m.author = pick(['irina', 'oleg', 'belova', 'ksenia', 'nvet1', 'lebedev']); });
     tail[tail.length - 1].text = 'Коллеги, вопросы по заданию соберу завтра одним сообщением и закреплю.'; tail[tail.length - 1].author = 'belova';
-    // Личное обучение: у каждого ученика только личный чат с преподавателем. Переписки начинаются пустыми.
-    [['nvet2', 'belova'], ['pavel', 'belova'], ['timur', 'kim']].forEach(([st, t]) => rooms.push({ id: 'dm-' + st, title: '', kind: 'direct', streams: [], members: [st, t] }));
+    // Личное обучение: у каждого ученика личная комната — он, все преподаватели личного обучения и админ. Переписки начинаются пустыми.
+    ['nvet2', 'pavel', 'timur'].forEach((st) => rooms.push({ id: 'dm-' + st, title: '', kind: 'direct', streams: [], members: [st] }));
     const pins = { 'r-common': common[common.length - 40].id, 'r-s2': messages.filter((m) => m.room === 'r-s2').slice(-10)[0].id };
     messages.find((m) => m.id === pins['r-common']).text = 'Домашние задания отправляем через раздел «Домашки», не в чат. Файл до 20 МБ.';
     messages.find((m) => m.id === pins['r-common']).author = 'belova';
@@ -169,7 +169,7 @@
     ];
 
     return {
-      version: 10, streams, users, modules, homeworkDefs, homework: hw, rooms, messages, pins, reads,
+      version: 11, streams, users, modules, homeworkDefs, homework: hw, rooms, messages, pins, reads,
       axon, axonMemory, library, librarySections,
       drafts: { alina: { 3: { answers: { q1: 'Черновик: ситуация из практики, начало описания…', q2: 'Шаг 1 — ' }, step: 1, savedAt: NOW - DAY, checklist: [true, false, false] } } },
       reading: { alina: { kind: 'module', n: 3, part: 2, progress: 0.4 }, alinaBook: { ch: 4, progress: 0.31 } },

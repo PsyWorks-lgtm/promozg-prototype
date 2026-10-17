@@ -41,19 +41,23 @@
     if (isLogin) return;
     const p = prefix(me.role);
     const individual = me.role === 'student' && me.streams.some((c) => (PM.api.stream(c) || {}).individual);
-    const items = NAV[p].map((it) => (individual && it[0] === 'chat' ? ['chat', 'chat', 'Мой преподаватель', 'chat'] : it));
+    const items = NAV[p].map((it) => (individual && it[0] === 'chat' ? ['chat', 'chat', 'Чат с преподавателями', 'chat'] : it));
+    // у админа на телефоне всё, что не влезло в 4 вкладки, уходит в «Ещё»
+    const moreMode = p === 'a';
+    const tabsBase = items.filter((it) => it[4] !== 'side');
+    const tabs = moreMode ? tabsBase.slice(0, 4).concat([['more', 'menu', 'Ещё']]) : tabsBase.slice(0, 5);
+    const tabKeys = tabs.map((t) => t[0]);
     const link = (it, cls) => {
       const [key, ic, label, count] = it;
-      const active = route.navKey === key;
+      const active = route.navKey === key || (cls === 'tab-a' && key === 'more' && !tabKeys.includes(route.navKey));
       return html`<a class="${cls} ${active ? 'active' : ''}" href="#/${p}/${key}" ${active ? html`aria-current="page"` : ''}>
-        ${ic === 'axon' ? PM.axonMark(20) : icon(ic)}<span class="lbl">${label}</span>${count ? PM.ui.badge(0, count === 'review' ? '' : 'neutral', count) : ''}</a>`;
+        ${ic === 'axon' ? PM.axonMark(20) : icon(ic)}<span class="lbl">${label}</span>${count ? PM.ui.badge(0, count === 'review' ? '' : 'quiet', count) : ''}</a>`;
     };
     const streams = me.streams.map((s) => PM.api.stream(s).label);
     setHTML(side, html`
       <div class="brand">${PM.pmMark(32)}<div>ProMozg<small>Кабинет курса</small></div></div>
       <nav class="nav">${items.map((it) => link(it, 'nav-a'))}</nav>
       <a class="me" href="#/${p}/settings" aria-label="Профиль и настройки">${PM.ui.avatar(me.name)}<span class="grow"><b>${me.name}</b><small>${ROLE_LABEL[me.role]}${streams.length ? ' · ' + streams.join(', ') : ''}</small></span>${icon('settings', 'sm')}</a>`);
-    const tabs = items.filter((it) => it[4] !== 'side').slice(0, 5);
     setHTML(tab, html`${tabs.map((it) => link(it, 'tab-a'))}`);
     tab.hidden = route.tabbar === false;
     root.classList.toggle('tabbar-hidden', route.tabbar === false);
@@ -118,5 +122,5 @@
     });
   }
 
-  PM.shell = { build, renderNav, updateCounts, toast, showPush, flushPushes, confirm, prefix, get view() { return view; } };
+  PM.shell = { NAV, build, renderNav, updateCounts, toast, showPush, flushPushes, confirm, prefix, get view() { return view; } };
 })(window.PM);

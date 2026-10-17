@@ -16,10 +16,10 @@
 
   function personView(u) {
     const hw = db().homework.filter((h) => h.student === u.id);
-    const dm = db().rooms.find((r) => r.kind === 'direct' && r.members[0] === u.id);
+    const dm = db().rooms.find((r) => r.kind === 'direct' && r.members[0] === u.id && !r.archived);
     return { ...clone(u), roleLabel: ROLE[u.role], streamLabels: streamLabels(u), sessions: sessions(u), stale: u.role === 'student' && u.active && Date.now() - u.lastSeen > STALE,
       hw: { accepted: hw.filter((h) => h.status === 'accepted').length, pending: hw.filter((h) => h.status === 'pending').length },
-      dm: dm ? { id: dm.id, teacher: A.user(dm.members[1]).name } : null };
+      dm: dm ? { id: dm.id } : null };
   }
   async function people(q = {}) {
     await lat();
@@ -37,16 +37,16 @@
   function loginTaken(login, except) { return db().users.some((u) => u.login === login && u.id !== except); }
   async function createPerson({ name, login, role, stream }) {
     await wait(400);
-    if (!name || !login) throw new A.ApiError(400, 'Заполните имя и логин.');
-    if (!/^[a-z0-9._-]{3,}$/.test(login)) throw new A.ApiError(400, 'Логин: латиница, цифры, точка, дефис, от 3 символов.');
-    if (loginTaken(login)) throw new A.ApiError(409, `Логин «${login}» уже занят. Добавьте букву или цифру.`);
+    const fe = {};
+    if (!name) fe.name = 'Введите имя и фамилию.';
+    if (!login) fe.login = 'Введите логин.';
+    else if (!/^[a-z0-9._-]{3,}$/.test(login)) fe.login = 'Логин: латиница, цифры, точка, дефис, от 3 символов.';
+    else if (loginTaken(login)) fe.login = `Логин «${login}» уже занят. Добавьте букву или цифру.`;
+    if (Object.keys(fe).length) { const e = new A.ApiError(400, 'Проверьте отмеченные поля.'); e.fields = fe; throw e; }
     const id = 'new' + (++x().created) + Date.now().toString(36);
     const u = { id, login, name, role, streams: role === 'admin' || !stream ? [] : [stream], active: true, lastSeen: 0 };
     db().users.push(u); x().sessions[id] = 0;
-    if (role === 'student' && A.stream(stream) && A.stream(stream).individual) {
-      const t = db().users.find((t2) => t2.role === 'teacher' && t2.active && t2.streams.includes(stream));
-      if (t) db().rooms.push({ id: 'dm-' + id, title: '', kind: 'direct', streams: [], members: [id, t.id] });
-    }
+    if (role === 'student' && A.stream(stream) && A.stream(stream).individual) db().rooms.push({ id: 'dm-' + id, title: '', kind: 'direct', streams: [], members: [id] });
     A.save(); A.emit('counts', {});
     return { person: personView(u), password: genPass() };
   }
@@ -63,11 +63,11 @@
   /* ---------- потоки ---------- */
   async function streams() {
     await lat();
-    return db().streams.map((s) => {
+    return db().streams.filter((s) => !s.hidden).map((s) => {
       const students = db().users.filter((u) => u.role === 'student' && u.streams.includes(s.code));
       const teachers = db().users.filter((u) => u.role === 'teacher' && u.streams.includes(s.code));
       const orphan = db().homework.filter((h) => h.status === 'pending' && students.some((u) => u.id === h.student)).length;
-      const personal = s.individual ? students.map((u) => { const r = db().rooms.find((rr) => rr.kind === 'direct' && rr.members[0] === u.id); return { id: u.id, name: u.name, login: u.login, active: u.active, teacher: r ? r.members[1] : null, room: r ? r.id : null }; }) : [];
+      const personal = s.individual ? students.map((u) => { const r = db().rooms.find((rr) => rr.kind === 'direct' && rr.members[0] === u.id && !rr.archived); return { id: u.id, name: u.name, login: u.login, active: u.active, room: r ? r.id : null }; }) : [];
       return { ...clone(s), students: students.filter((u) => u.active).length, closedStudents: students.filter((u) => !u.active).length,
         teachers: teachers.map((t) => ({ id: t.id, name: t.name, active: t.active })), noActive: !teachers.some((t) => t.active), pending: orphan, personal };
     });
@@ -75,13 +75,15 @@
   const allTeachers = () => db().users.filter((u) => u.role === 'teacher').map((t) => ({ id: t.id, name: t.name, active: t.active }));
   async function assignTeacher(code, tid) { await wait(300); const t = A.user(tid); if (!t.streams.includes(code)) t.streams.push(code); A.save(); A.emit('counts', {}); }
   async function unassignTeacher(code, tid) { await wait(300); const t = A.user(tid); t.streams = t.streams.filter((s) => s !== code); A.save(); A.emit('counts', {}); }
-  async function setPersonalTeacher(sid, tid) {
-    await wait(300);
-    let r = db().rooms.find((rr) => rr.kind === 'direct' && rr.members[0] === sid);
-    if (r) r.members[1] = tid; else db().rooms.push({ id: 'dm-' + sid, title: '', kind: 'direct', streams: [], members: [sid, tid] });
-    const t = A.user(tid); const code = A.user(sid).streams[0]; if (!t.streams.includes(code)) t.streams.push(code);
-    A.save();
+  /* Перевод ученика: чат сменится, работы и прогресс сохранятся, проверяют преподаватели нового потока */
+  async function transfer(sid, code) {
+    await wait(400); if (A.flags.netFail) throw new A.ApiError(0, 'Нет связи с сервером. Ученик остался в прежнем потоке.');
+    const u = A.user(sid); u.streams = [code];
+    db().rooms.filter((r) => r.kind === 'direct' && r.members[0] === sid).forEach((r) => { r.archived = !A.stream(code).individual; });
+    if (A.stream(code).individual && !db().rooms.some((r) => r.kind === 'direct' && r.members[0] === sid)) db().rooms.push({ id: 'dm-' + sid, title: '', kind: 'direct', streams: [], members: [sid] });
+    A.save(); A.emit('counts', {}); return personView(u);
   }
+  const streamOptions = () => db().streams.filter((s) => !s.hidden).map((s) => ({ code: s.code, label: s.label, individual: !!s.individual, teachers: db().users.filter((t) => t.role === 'teacher' && t.active && t.streams.includes(s.code)).map((t) => t.name) }));
 
   /* ---------- «Качество AXON»: детерминированный генератор ---------- */
   const TOP = ['План повторения модуля', 'С чего начать задание', 'Термин из главы', 'Как вести конспект', 'Вопросы к встрече', 'Разбор учебного примера', 'Схема из модуля', 'Подготовка к проверке', 'Непонятный абзац', 'Как сформулировать вывод'];
@@ -177,5 +179,5 @@
       people: { students: d.users.filter((u) => u.role === 'student' && u.active).length, teachers: d.users.filter((u) => u.role === 'teacher' && u.active).length, closed: d.users.filter((u) => !u.active).length } };
   }
 
-  A.admin = { people, person, createPerson, resetPassword, changeLogin, setActive, streams, allTeachers, assignTeacher, unassignTeacher, setPersonalTeacher, axonQuality, axonDialog, axonFlag, summary, ROLE };
+  A.admin = { people, person, createPerson, resetPassword, changeLogin, setActive, streams, allTeachers, assignTeacher, unassignTeacher, transfer, streamOptions, axonQuality, axonDialog, axonFlag, summary, ROLE };
 })(window.PM);

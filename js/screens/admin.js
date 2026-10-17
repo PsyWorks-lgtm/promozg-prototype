@@ -4,7 +4,7 @@
   const { html, $, $$, on, fmt, plural, setHTML } = PM.dom;
   const icon = PM.icon; const ui = PM.ui; const S = PM.screens; const R = PM.router;
   const AD = () => PM.api.admin;
-  const seen = (t) => (!t ? 'ещё не входил(а)' : Date.now() - t < 864e5 ? 'сегодня, ' + fmt.time(t) : fmt.short(t) + (Date.now() - t > 14 * 864e5 ? ` · ${fmt.waitDays(t)} дн. назад` : ''));
+  const seen = (t) => (!t ? 'входа ещё не было' : Date.now() - t < 864e5 ? 'сегодня, ' + fmt.time(t) : fmt.short(t) + (Date.now() - t > 14 * 864e5 ? ` · ${fmt.waitDays(t)} дн. назад` : ''));
   const sec = (v) => v.toFixed(1).replace('.', ',') + ' с';
 
   /* Заменить адрес без перерисовки экрана (фильтры) и сохранить его для «Назад» */
@@ -15,10 +15,10 @@
   }
 
   /* Модалка с формой. submit(form) → Promise; ошибка остаётся в модалке, модалка не закрывается (A-03) */
-  function modal({ title, body, ok = 'Готово', danger = false, cancel = 'Отмена', submit }) {
+  function modal({ title, body, ok = 'Готово', danger = false, cancel = 'Отмена', submit, locked = false }) {
     return new Promise((resolve) => {
       const opener = document.activeElement; const host = $('#modal-root');
-      setHTML(host, html`<div class="overlay" data-m="x"></div>
+      setHTML(host, html`<div class="overlay" ${locked ? '' : html`data-m="x"`}></div>
         <form class="modal sheet" role="dialog" aria-modal="true" aria-labelledby="m-title" novalidate>
           <h2 id="m-title">${title}</h2><div class="col gap4 m-body">${body}</div>
           <div class="err-summary" role="alert" data-m-err hidden></div>
@@ -26,7 +26,7 @@
       const f = $('form', host);
       const close = (v) => { setHTML(host, ''); document.removeEventListener('keydown', key); if (opener && opener.focus) opener.focus(); resolve(v); };
       const key = (e) => {
-        if (e.key === 'Escape') close(null);
+        if (e.key === 'Escape' && !locked) close(null);
         if (e.key === 'Tab') { const fs = $$('button,input,select,textarea', f).filter((el) => !el.disabled); const i = fs.indexOf(document.activeElement); if (e.shiftKey && i <= 0) { e.preventDefault(); fs[fs.length - 1].focus(); } else if (!e.shiftKey && i === fs.length - 1) { e.preventDefault(); fs[0].focus(); } }
       };
       document.addEventListener('keydown', key);
@@ -34,38 +34,47 @@
       f.addEventListener('submit', async (e) => {
         e.preventDefault(); if (!submit) { close(true); return; }
         const btn = $('button[type=submit]', f); const err = $('[data-m-err]', f); btn.disabled = true; err.hidden = true;
-        try { close(await submit(f) || true); } catch (ex) { err.hidden = false; err.textContent = ex.message; btn.disabled = false; }
+        $$('[aria-invalid]', f).forEach((i) => i.removeAttribute('aria-invalid')); $$('.helper.err', f).forEach((h) => { h.hidden = true; });
+        try { close(await submit(f) || true); } catch (ex) {
+          err.hidden = false; err.textContent = ex.message; btn.disabled = false;
+          if (ex.fields) {
+            let first = null;
+            Object.entries(ex.fields).forEach(([n, msg]) => { const i = f.elements[n]; const h = $('#e-' + n, f); if (!i) return; i.setAttribute('aria-invalid', 'true'); if (h) { h.textContent = msg; h.hidden = false; } if (!first) first = i; });
+            if (first) first.focus();
+          }
+        }
       });
       setTimeout(() => { const first = $('input,select', f) || $('button[type=submit]', f); if (first) first.focus(); }, 30);
     });
   }
-  const showPassword = (name, login, pass) => modal({ title: 'Новый пароль', ok: 'Готово', cancel: '', body: html`<p class="t2 muted">Передайте ${name} логин и пароль. Пароль показываем один раз: после закрытия окна его не будет видно.</p>
+  const showPassword = (name, login, pass) => modal({ title: 'Новый пароль', ok: 'Готово', cancel: '', locked: true, body: html`<p class="t2 muted">Логин и пароль для: <b>${name}</b>. Пароль показываем один раз, после закрытия окна его не будет видно. Окно закрывается только кнопкой «Готово».</p>
     <div class="pw-box"><span class="grow"><small class="faint">Логин</small><b>${login}</b></span></div>
     <div class="pw-box"><span class="grow"><small class="faint">Пароль</small><b data-pw>${pass}</b></span><button type="button" class="btn secondary sm" data-copy="${pass}">${icon('copy', 'sm')}Скопировать</button></div>` });
 
   /* Действия с аккаунтом — общие для меню «⋯» и карточки */
   async function act(kind, p, after) {
     if (kind === 'reset') {
-      const pass = await modal({ title: 'Сбросить пароль?', ok: 'Сбросить пароль', body: html`<p class="muted">${p.name} (${p.login}). Логин останется прежним. Человек выйдет со всех устройств, новый пароль покажем один раз.</p>`, submit: () => AD().resetPassword(p.id) });
+      const pass = await modal({ title: 'Новый пароль?', ok: 'Выдать новый пароль', body: html`<p class="muted">${p.name} (${p.login}). Логин останется прежним. Человек выйдет со всех устройств, новый пароль покажем один раз.</p>`, submit: () => AD().resetPassword(p.id) });
       if (pass) { await showPassword(p.name, p.login, pass); after && after(); }
     }
-    if (kind === 'login') {
-      const r = await modal({ title: 'Сменить логин', ok: 'Сменить логин', body: html`<p class="t2 muted">Домашки, AXON и чат останутся у человека. Человек выйдет со всех устройств, пароль не меняется.</p>
-        <label class="field"><span>Новый логин</span><input class="input" name="nl" autocomplete="off" spellcheck="false" placeholder="например, ${p.login}2"></label>
-        <label class="field"><span>Для подтверждения введите старый логин «${p.login}»</span><input class="input" name="ol" autocomplete="off" spellcheck="false"></label>`,
-        submit: (f) => AD().changeLogin(p.id, f.nl.value.trim(), f.ol.value.trim()) });
-      if (r) { PM.shell.toast(`Логин изменён на «${r.login}»`); after && after(); }
+    if (kind === 'transfer') {
+      const opts = AD().streamOptions().filter((o) => !p.streams.includes(o.code));
+      const r = await modal({ title: 'Перевести в другой поток', ok: 'Перевести', body: html`<p class="t2 muted">${p.name} (${p.login}) · сейчас: ${p.streamLabels.join(', ') || 'без потока'}</p>
+        <label class="field"><span>Новый поток</span><select class="input" name="to">${opts.map((o) => html`<option value="${o.code}">${o.label}${o.teachers.length ? '' : ' — нет активного преподавателя'}</option>`)}</select><small class="helper err" id="e-to" hidden></small></label>
+        <ul class="t2 muted conseq"><li>Чат сменится: ученик попадёт в чат нового потока, прежний чат станет недоступен.</li><li>Домашки, прогресс по модулям, история AXON сохранятся.</li><li>Работы будут проверять преподаватели нового потока.</li><li>Если новый поток — «Личное обучение», откроется «Чат с преподавателями».</li></ul>`,
+        submit: (f) => AD().transfer(p.id, f.to.value) });
+      if (r) { PM.shell.toast(`Переведено: ${r.streamLabels.join(', ')}`); after && after(); }
     }
     if (kind === 'close') {
-      const r = await modal({ title: 'Закрыть доступ?', ok: 'Закрыть доступ', danger: true, body: html`<p class="muted">${p.name} (${p.login}) не сможет войти, открытые сессии завершатся. Домашки, переписка и история AXON сохранятся, доступ можно вернуть.</p>${p.role === 'teacher' ? html`<p class="t2 warn-t">Если это единственный преподаватель потока, работы учеников останутся без проверяющего.</p>` : ''}`, submit: () => AD().setActive(p.id, false) });
+      const r = await modal({ title: 'Закрыть доступ?', ok: 'Закрыть доступ', danger: true, body: html`<p class="muted">${p.name} (${p.login}): вход станет невозможен, открытые сессии завершатся. Домашки, переписка и история AXON сохранятся, доступ можно вернуть.</p>${p.role === 'teacher' ? html`<p class="t2 warn-t">Если это единственный преподаватель потока, работы учеников останутся без проверяющего.</p>` : ''}`, submit: () => AD().setActive(p.id, false) });
       if (r) { PM.shell.toast('Доступ закрыт. Данные сохранены'); after && after(); }
     }
     if (kind === 'open') {
-      const r = await modal({ title: 'Вернуть доступ?', ok: 'Вернуть доступ', body: html`<p class="muted">${p.name} снова сможет войти со своим логином «${p.login}». Если пароль забыт, сбросьте его отдельно.</p>`, submit: () => AD().setActive(p.id, true) });
+      const r = await modal({ title: 'Вернуть доступ?', ok: 'Вернуть доступ', body: html`<p class="muted">${p.name}: вход снова будет работать с прежним логином «${p.login}». Если пароль забыт, выдайте новый отдельно.</p>`, submit: () => AD().setActive(p.id, true) });
       if (r) { PM.shell.toast('Доступ возвращён'); after && after(); }
     }
   }
-  const menuItems = (p) => html`<button role="menuitem" data-pact="open-card">Открыть карточку</button><button role="menuitem" data-pact="reset">Сбросить пароль</button><button role="menuitem" data-pact="login">Сменить логин</button>${p.active ? html`<button role="menuitem" class="danger-t" data-pact="close">Закрыть доступ</button>` : html`<button role="menuitem" data-pact="open">Вернуть доступ</button>`}`;
+  const menuItems = (p) => html`<button role="menuitem" tabindex="-1" data-pact="open-card">Открыть карточку</button><button role="menuitem" tabindex="-1" data-pact="reset">Новый пароль</button>${p.active ? html`<button role="menuitem" tabindex="-1" class="danger-t" data-pact="close">Закрыть доступ</button>` : html`<button role="menuitem" tabindex="-1" data-pact="open">Вернуть доступ</button>`}`;
 
   /* ---------- A-01 Сводка ---------- */
   function adminHome(ctx) {
@@ -98,7 +107,7 @@
     if (!list.length) return ui.empty({ icon: 'search', title: 'Никого не нашли', text: 'Проверьте написание или сбросьте фильтры.', action: html`<button class="btn secondary" data-act="clear">Сбросить фильтры</button>` });
     return html`<table class="tbl"><thead><tr><th>Человек</th><th>Логин</th><th>Роль</th><th>Поток</th><th>Последний вход</th><th><span class="sr">Действия</span></th></tr></thead><tbody>
       ${list.map((p) => html`<tr class="${p.active ? '' : 'closed'}" data-id="${p.id}">
-        <td class="t-main"><a class="row p-link" href="#/a/people/${p.id}">${ui.avatar(p.name)}<span class="grow"><b class="ttl">${p.name}</b>${p.active ? '' : html`<span class="pill blank">Доступ закрыт</span>`}${p.stale ? html`<span class="pill pending">давно не заходил(а)</span>` : ''}</span></a></td>
+        <td class="t-main"><a class="row p-link" href="#/a/people/${p.id}">${ui.avatar(p.name)}<span class="grow"><b class="ttl">${p.name}</b>${p.active ? '' : html`<span class="pill blank">Доступ закрыт</span>`}${p.stale ? html`<span class="pill pending">давно не заходит · ${fmt.waitDays(p.lastSeen)} дн.</span>` : ''}</span></a></td>
         <td data-l="Логин"><code>${p.login}</code></td><td data-l="Роль">${p.roleLabel}</td><td data-l="Поток">${p.streamLabels.join(', ') || '—'}</td><td data-l="Вход">${seen(p.lastSeen)}</td>
         <td class="t-act"><div class="menu-wrap"><button class="iconbtn" data-act="menu" aria-haspopup="menu" aria-expanded="false" aria-label="Действия: ${p.name}, ${p.login}">${icon('more', 'sm')}</button></div></td></tr>`)}</tbody></table>`;
   }
@@ -150,16 +159,25 @@
         if (k === 'open-card') location.hash = '#/a/people/' + p.id; else act(k, p, reload);
       }));
       const outside = (e) => { if (!e.target.closest('.menu-wrap')) closeMenus(); };
-      const esc = (e) => { if (e.key === 'Escape') closeMenus(); };
+      const esc = (e) => {
+        const m = $('.menu-pop', root); if (!m) return;
+        const btn = m.previousElementSibling; const items = $$('[role=menuitem]', m); const i = items.indexOf(document.activeElement);
+        if (e.key === 'Escape') { closeMenus(); btn.focus(); }
+        else if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+        else if (e.key === 'Home') { e.preventDefault(); items[0].focus(); }
+        else if (e.key === 'End') { e.preventDefault(); items[items.length - 1].focus(); }
+        else if (e.key === 'Tab') closeMenus();
+      };
       document.addEventListener('click', outside); document.addEventListener('keydown', esc);
       offs.push(() => { document.removeEventListener('click', outside); document.removeEventListener('keydown', esc); });
       const create = async () => {
         const streams = PM.api.db.streams.filter((s) => !s.hidden);
         const r = await modal({ title: 'Добавить человека', ok: 'Создать и показать пароль', body: html`
-          <label class="field"><span>Имя и фамилия</span><input class="input" name="name" autocomplete="off"></label>
-          <label class="field"><span>Логин</span><input class="input" name="login" autocomplete="off" spellcheck="false" placeholder="i.familiya"><small class="helper">Латиница. Если имя совпадает с кем-то, логин их различит.</small></label>
+          <label class="field"><span>Имя и фамилия</span><input class="input" name="name" autocomplete="off" aria-describedby="e-name"><small class="helper err" id="e-name" hidden></small></label>
+          <label class="field"><span>Логин</span><input class="input" name="login" autocomplete="off" spellcheck="false" placeholder="i.familiya" aria-describedby="e-login h-login"><small class="helper err" id="e-login" hidden></small><small class="helper" id="h-login">Латиница. Если имя совпадает с кем-то, логин их различит.</small></label>
           <label class="field"><span>Роль</span><select class="input" name="role"><option value="student">Ученик</option><option value="teacher">Преподаватель</option><option value="admin">Админ</option></select></label>
-          <label class="field"><span>Поток</span><select class="input" name="stream">${streams.map((s) => html`<option value="${s.code}">${s.label}</option>`)}</select><small class="helper">Ученику «Личного обучения» сразу откроется личный чат с преподавателем потока.</small></label>`,
+          <label class="field"><span>Поток</span><select class="input" name="stream">${streams.map((s) => html`<option value="${s.code}">${s.label}</option>`)}</select><small class="helper">Ученику «Личного обучения» сразу откроется «Чат с преподавателями».</small></label>`,
           submit: (f) => AD().createPerson({ name: f.name.value.trim(), login: f.login.value.trim().toLowerCase(), role: f.role.value, stream: f.stream.value }) });
         if (r) { await showPassword(r.person.name, r.person.login, r.password); location.hash = '#/a/people/' + r.person.id; }
       };
@@ -183,11 +201,10 @@
         <section class="card"><div class="row">${ui.avatar(p.name, 'lg')}<div class="grow"><h3>${p.name}</h3><div class="t2 muted">${p.roleLabel}${p.streamLabels.length ? ' · ' + p.streamLabels.join(', ') : ''}</div></div>${p.active ? html`<span class="pill accepted">Доступ открыт</span>` : html`<span class="pill blank">Доступ закрыт</span>`}</div>
           ${row('Логин', html`<code>${p.login}</code>`)}${row('Последний вход', seen(p.lastSeen))}${row('Сессии', p.sessions ? `${p.sessions} ${plural(p.sessions, ['устройство', 'устройства', 'устройств'])}` : 'нет активных')}
           ${p.role === 'student' ? row('Домашки', `принято ${p.hw.accepted} из 8${p.hw.pending ? ` · ${p.hw.pending} на проверке` : ''}`) : ''}
-          ${p.dm ? row('Личный чат', html`<a class="link" href="#/a/chat/${p.dm.id}">с преподавателем ${p.dm.teacher} →</a>`) : ''}
-          ${p.role !== 'admin' ? row('Поток', html`<a class="link" href="#/a/streams">${p.streamLabels.join(', ') || 'не назначен'} · изменить в «Потоках»</a>`) : ''}</section>
+          ${p.dm ? row('Личный чат', html`<a class="link hit" href="#/a/chat/${p.dm.id}">Чат с преподавателями →</a>`) : ''}
+          ${p.role === 'student' ? row('Поток', html`<span class="row wrap gap2"><span>${p.streamLabels.join(', ') || 'не назначен'}</span><button class="btn secondary sm" data-pact="transfer">Перевести</button></span>`) : p.role === 'teacher' ? row('Потоки', html`<a class="link hit" href="#/a/streams">${p.streamLabels.join(', ') || 'не назначен'} · назначить в «Потоках»</a>`) : ''}</section>
         <section class="card"><h3>Доступ</h3>
-          ${action('reset', 'Сбросить пароль', 'Логин останется, человек выйдет со всех устройств. Новый пароль покажем один раз.')}
-          ${action('login', 'Сменить логин', 'Домашки, AXON и чат останутся у человека. Человек выйдет со всех устройств.')}
+          ${action('reset', 'Новый пароль', 'Логин останется прежним, все устройства выйдут из кабинета. Новый пароль покажем один раз.')}
           ${p.active ? action('close', 'Закрыть доступ', 'Человек не сможет войти. Данные сохранятся, доступ можно вернуть.', 'danger-outline') : action('open', 'Вернуть доступ', 'Человек снова сможет войти со своим логином.')}
         </section>
       </div>`;
@@ -207,15 +224,14 @@
       <div class="page col gap4">
         <p class="t2 muted">Работы ученика проверяют активные преподаватели его потока. Если активного нет, работы попадают в «без проверяющего».</p>
         ${streams.map((s) => html`<section class="card stream-card ${s.noActive ? 'warn' : ''}" data-stream="${s.code}">
-          <div class="row wrap"><h3 class="grow">${s.label}${s.hidden ? html` <span class="pill blank">скрыт</span>` : ''}${s.individual ? html` <span class="pill draft">у каждого ученика свой преподаватель</span>` : ''}</h3>
+          <div class="row wrap"><h3 class="grow">${s.label}${s.hidden ? html` <span class="pill blank">скрыт</span>` : ''}${s.individual ? html` <span class="pill draft">личная комната у каждого ученика</span>` : ''}</h3>
             <span class="t2 muted">${s.students} ${plural(s.students, ['ученик', 'ученика', 'учеников'])}${s.closedStudents ? ` · закрыто ${s.closedStudents}` : ''}${s.pending ? ` · ${s.pending} ${plural(s.pending, ['работа ждёт', 'работы ждут', 'работ ждут'])}` : ''}</span></div>
           ${s.noActive && !s.hidden ? html`<p class="t2 warn-t" role="status">${icon('alert', 'sm')} В потоке нет активного преподавателя — работы учеников никто не проверяет.</p>` : ''}
           <div class="caps">Преподаватели потока</div>
-          <div class="chips">${s.teachers.length ? s.teachers.map((t) => html`<span class="chip t-chip ${t.active ? '' : 'off'}">${t.name}${t.active ? '' : ' · доступ закрыт'}<button class="x" data-unassign="${t.id}" aria-label="Убрать ${t.name} из потока ${s.label}">${icon('x', 'sm')}</button></span>`) : html`<span class="t2 faint">никого</span>`}</div>
+          <div class="chips">${s.teachers.length ? s.teachers.map((t) => html`<span class="chip t-chip ${t.active ? '' : 'off'}">${t.name}${t.active ? '' : ' · доступ закрыт'}<button class="x" data-unassign="${t.id}" data-name="${t.name}" data-last="${t.active && s.teachers.filter((x) => x.active).length === 1 ? '1' : ''}" aria-label="Убрать ${t.name} из потока ${s.label}">${icon('x', 'sm')}</button></span>`) : html`<span class="t2 faint">никого</span>`}</div>
           <form class="row wrap assign" data-assign><select class="input sel" name="t" aria-label="Преподаватель для потока ${s.label}"><option value="">Выберите преподавателя…</option>${opts(s.teachers.filter((t) => t.active).map((t) => t.id))}</select><button class="btn secondary sm">Назначить</button></form>
-          ${s.individual ? html`<div class="caps">Ученики и их преподаватели</div><div class="list">${s.personal.map((p) => html`<div class="li"><span class="grow"><b class="ttl">${p.name}</b><span class="sub">${p.login}${p.active ? '' : ' · доступ закрыт'}</span></span>
-            <select class="input sel" data-personal="${p.id}" aria-label="Преподаватель ученика ${p.name}">${p.teacher ? '' : html`<option value="">не назначен</option>`}${teachers.filter((t) => t.active || t.id === p.teacher).map((t) => html`<option value="${t.id}" ${t.id === p.teacher ? 'selected' : ''}>${t.name}</option>`)}</select>
-            ${p.room ? html`<a class="iconbtn" href="#/a/chat/${p.room}" aria-label="Написать в личный чат ${p.name}">${icon('chat', 'sm')}</a>` : ''}</div>`)}</div>` : ''}
+          ${s.individual ? html`<div class="caps">Ученики · в личной комнате все преподаватели потока и админ</div><div class="list">${s.personal.map((p) => html`<div class="li"><span class="grow"><b class="ttl">${p.name}</b><span class="sub">${p.login}${p.active ? '' : ' · доступ закрыт'}</span></span>
+            ${p.room ? html`<a class="btn secondary sm" href="#/a/chat/${p.room}" aria-label="Написать в личную комнату: ${p.name}">${icon('chat', 'sm')}Написать</a>` : ''}</div>`)}</div>` : ''}
         </section>`)}
       </div>`;
     },
@@ -223,12 +239,23 @@
       const offs = []; const re = () => PM.app.render();
       offs.push(on(root, 'submit', '[data-assign]', async (e, f) => { e.preventDefault(); if (!f.t.value) { f.t.focus(); return; } const code = f.closest('[data-stream]').dataset.stream; await AD().assignTeacher(code, f.t.value); PM.shell.toast('Преподаватель назначен'); re(); }));
       offs.push(on(root, 'click', '[data-unassign]', async (e, b) => {
-        const card = b.closest('[data-stream]'); const name = b.closest('.chip').firstChild.textContent;
-        const ok = await PM.shell.confirm({ title: 'Убрать из потока?', text: `${name} перестанет видеть работы и чат этого потока. Аккаунт и прошлые проверки сохранятся.`, ok: 'Убрать', danger: true });
+        const card = b.closest('[data-stream]'); const name = b.dataset.name; const last = b.dataset.last === '1';
+        const ok = await PM.shell.confirm({ title: 'Убрать из потока?', text: `${name}: работы и чат этого потока станут недоступны. Аккаунт и прошлые проверки сохранятся.${last ? ' Это последний активный преподаватель: работы этого потока останутся без проверяющего.' : ''}`, ok: 'Убрать', danger: true });
         if (ok) { await AD().unassignTeacher(card.dataset.stream, b.dataset.unassign); re(); }
       }));
-      offs.push(on(root, 'change', '[data-personal]', async (e, s) => { await AD().setPersonalTeacher(s.dataset.personal, s.value); PM.shell.toast('Преподаватель ученика изменён, личный чат остаётся с историей'); re(); }));
       return () => offs.forEach((f) => f());
+    },
+  };
+
+  /* ---------- «Ещё» (нижняя панель админа на телефоне) ---------- */
+  S.more = {
+    nav: () => 'more', title: 'Ещё',
+    view: () => {
+      const keys = ['home', 'people', 'homework', 'chat'];
+      const items = PM.shell.NAV.a.filter((it) => !keys.includes(it[0]));
+      return html`${ui.header({ title: 'Ещё' })}<div class="page narrow"><nav class="list" aria-label="Другие разделы">
+        ${items.map(([k, ic, l]) => html`<a class="li" href="#/a/${k}">${ic === 'axon' ? PM.axonMark(20) : icon(ic)}<span class="grow ttl">${l}</span>${icon('right', 'sm chev')}</a>`)}
+        <a class="li" href="#/a/settings">${icon('settings')}<span class="grow ttl">Профиль и настройки</span>${icon('right', 'sm chev')}</a></nav></div>`;
     },
   };
 

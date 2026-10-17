@@ -6,16 +6,16 @@
   const S = PM.screens;
   const P = () => PM.shell.prefix(PM.store.me().role);
   const EMO = ['👍', '❤️', '🙏', '😊'];
-  const GROUPS = [['direct', 'Личные ученики'], ['stream', 'Чаты потоков'], ['staff', 'Команда']];
+  const GROUPS = [['direct', 'Личное'], ['stream', 'Чаты потоков'], ['staff', 'Команда']];
 
   function roomList(rooms, activeId, me) {
     const p = P();
-    const label = (g) => (me.role === 'student' ? (g === 'direct' ? 'Личный чат' : 'Чаты потока') : me.role === 'admin' && g === 'direct' ? 'Личное обучение' : GROUPS.find((x) => x[0] === g)[1]);
+    const label = (g) => (me.role === 'student' ? (g === 'direct' ? 'Личный чат' : 'Чаты потока') : GROUPS.find((x) => x[0] === g)[1]);
     const order = me.role === 'teacher' ? ['stream', 'direct', 'staff'] : ['stream', 'staff', 'direct'];
     return html`<nav class="rooms" aria-label="Чаты">${order.map((g) => { const rs = rooms.filter((r) => r.group === g); return rs.length ? html`<div class="caps rooms-h">${label(g)}</div>${rs.map((r) => html`
       <a class="room ${r.id === activeId ? 'on' : ''}" href="#/${p}/chat/${r.id}" ${r.id === activeId ? html`aria-current="page"` : ''}>
         ${r.group === 'direct' ? ui.avatar(r.peer || r.title) : html`<span class="ic-box">${icon(r.group === 'staff' ? 'users' : 'chat', 'sm')}</span>`}
-        <span class="grow"><span class="row"><b class="ttl grow ellipsis">${r.title}</b>${r.last ? html`<small class="faint">${fmt.short(r.last.at)}</small>` : ''}</span>
+        <span class="grow"><span class="row"><b class="ttl grow ellipsis">${r.title}</b>${r.group === 'direct' && me.role !== 'student' ? html`<span class="tag sm">Личное</span>` : ''}${r.last ? html`<small class="faint">${fmt.short(r.last.at)}</small>` : ''}</span>
         <span class="row"><span class="sub grow ellipsis">${r.last ? `${r.last.author.split(' ')[0]}: ${r.last.text}` : r.group === 'direct' ? 'Переписка пока пустая' : 'Сообщений пока нет'}</span>${r.unread ? html`<span class="badge neutral" data-room-unread="${r.id}">${r.unread}</span>` : ''}</span></span></a>`)}` : ''; })}</nav>`;
   }
 
@@ -81,7 +81,7 @@
 
   S.chatRoom = {
     nav: (r) => (r.params.room.startsWith('dm-') && PM.store.me() && PM.store.me().role === 'teacher' ? 'personal' : 'chat'),
-    // у ученика личного обучения этот чат — раздел «Мой преподаватель» в нижнем меню, поэтому меню остаётся видно
+    // у ученика личного обучения этот чат — раздел «Чат с преподавателями» в нижнем меню, поэтому меню остаётся видно
     tabbar: (r) => { const me = PM.store.me(); return matchMedia('(min-width: 900px)').matches || !!(me && me.role === 'student' && r.params.room.startsWith('dm-')); },
     skeleton: () => html`<div class="chat-layout"><aside class="rooms-pane only-d">${ui.skeletonList(4)}</aside><section class="chat-pane">${ui.header({ title: 'Чат', back: '#/' })}<div class="feed">${ui.skeletonList(5)}</div></section></div>`,
     load: async (ctx) => {
@@ -94,16 +94,16 @@
       const canPin = me.role !== 'student';
       const firstUnread = d.messages.find((m) => Number(m.id.slice(1)) > Number(String(d.lastRead).slice(1)) && m.author !== me.id);
       const opts = { canPin, unreadBefore: firstUnread ? firstUnread.id : null };
-      const sub = r.group === 'direct' ? (individual ? 'Ваш преподаватель · личное обучение' : r.sub) : `${r.members} ${PM.dom.plural(r.members, ['участник', 'участника', 'участников'])}`;
+      const sub = r.group === 'direct' ? (individual ? 'Личное обучение' : r.sub + ` · ${r.members} ${PM.dom.plural(r.members, ['участник', 'участника', 'участников'])}`) : `${r.members} ${PM.dom.plural(r.members, ['участник', 'участника', 'участников'])}`;
       const empty = !d.messages.length || ctx.state === 'empty';
       return html`<div class="chat-layout">
         ${individual ? '' : html`<aside class="rooms-pane only-d">${roomList(d.rooms, r.id, me)}</aside>`}
         <section class="chat-pane" aria-label="${r.title}">
-          ${ui.header({ title: individual ? 'Мой преподаватель' : r.title, sub: individual ? r.title + ' · личное обучение' : sub, back: individual ? '#/s/home' : `#/${P()}/chat/rooms` })}
+          ${ui.header({ title: r.title, sub: individual ? 'Преподаватели личного обучения и админ' : sub, back: individual ? '#/s/home' : `#/${P()}/chat/rooms` })}
           <div data-pin>${pinHTML(d.pin)}</div>
           <div class="feed" data-feed role="log" aria-live="polite" aria-relevant="additions" tabindex="0" aria-label="Сообщения">
             <div class="feed-top" data-top>${d.hasMore ? html`<span class="t2 faint" data-more-label>Прокрутите вверх, чтобы загрузить раньше</span>` : html`<span class="t2 faint">Начало переписки</span>`}</div>
-            <div data-list>${empty ? html`<div class="empty sm">${ui.empty({ icon: 'chat', title: r.group === 'direct' ? 'Переписка пока пустая' : 'Сообщений пока нет', text: r.group === 'direct' ? (me.role === 'student' ? 'Здесь ваша переписка с преподавателем. Напишите, если появился вопрос' : 'Напишите ученику первым — сообщение придёт с уведомлением.') : 'Напишите первым.' })}</div>` : d.messages.map((m, i) => msgHTML(m, me, d.messages[i - 1], opts))}</div>
+            <div data-list>${empty ? html`<div class="empty sm">${ui.empty({ icon: 'chat', title: r.group === 'direct' ? 'Переписка пока пустая' : 'Сообщений пока нет', text: r.group === 'direct' ? (me.role === 'student' ? 'Здесь ваша переписка с преподавателем. Напишите, если появился вопрос по модулю или домашке' : 'Напишите ученику первым — сообщение придёт с уведомлением.') : 'Напишите первым.' })}</div>` : d.messages.map((m, i) => msgHTML(m, me, d.messages[i - 1], opts))}</div>
           </div>
           <button class="fab-down" data-act="down" hidden aria-label="К новым сообщениям">${icon('down', 'sm')}<span class="badge" data-new hidden></span></button>
           ${r.readOnly ? html`<div class="composer-ro t2 muted">Писать в этот чат может только преподаватель</div>` : html`

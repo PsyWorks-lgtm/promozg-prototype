@@ -2,7 +2,7 @@
 (function (PM) {
   'use strict';
   const KEY = 'promozg-proto-session-v1';
-  const defaults = { uid: 'alina', theme: 'auto', readSize: 18, darkReading: false, demoOpen: true, live: true, iosNoPwa: false };
+  const defaults = { uid: 'alina', theme: 'auto', readSize: 18, darkReading: false, demoOpen: window.matchMedia('(min-width: 900px)').matches, live: true, iosNoPwa: false };
   let s = { ...defaults };
   try { s = { ...defaults, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch (_) { /* пусто */ }
   const subs = [];

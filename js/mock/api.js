@@ -2,12 +2,12 @@
    Методы асинхронные и с задержкой, чтобы были видны состояния загрузки. */
 (function (PM) {
   'use strict';
-  const KEY = 'promozg-proto-db-v10';
+  const KEY = 'promozg-proto-db-v11';
   const listeners = {};
   let db = load();
 
   function load() {
-    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.version === 10) return s; } catch (_) { /* пусто */ }
+    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.version === 11) return s; } catch (_) { /* пусто */ }
     return PM.seed();
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (_) { /* переполнено — игнорируем в демо */ } }
@@ -175,17 +175,23 @@
   }
 
   /* ---------- чат ---------- */
+  /* Личная комната личного обучения: ученик, все активные преподаватели его потока и админ */
+  function inDirect(u, r) {
+    const st = user(r.members[0]);
+    if (u.id === st.id) return !r.archived;
+    if (r.archived) return u.role === 'admin';
+    if (u.role === 'admin') return true;
+    return u.role === 'teacher' && u.active && u.streams.some((s) => st.streams.includes(s));
+  }
   function roomsFor(u) {
-    if (u.role === 'admin') return db.rooms;
-    return db.rooms.filter((r) => (r.kind === 'direct' ? r.members.includes(u.id) : r.kind === 'staff' ? u.role === 'teacher' : r.streams.some((s) => u.streams.includes(s))));
+    return db.rooms.filter((r) => (r.kind === 'direct' ? inDirect(u, r) : u.role === 'admin' ? true : r.kind === 'staff' ? u.role === 'teacher' : r.streams.some((s) => u.streams.includes(s))));
   }
   /* Название комнаты зависит от того, кто смотрит: в личном чате — имя собеседника */
   function roomView(r, u) {
     if (r.kind !== 'direct') return { title: r.title, sub: '', group: r.kind === 'staff' ? 'staff' : 'stream' };
-    const st = user(r.members[0]), t = user(r.members[1]);
-    if (u.id === st.id) return { title: t.name, sub: 'Личное обучение', group: 'direct', peer: t.name };
-    if (u.role === 'admin') return { title: `${st.name} ↔ ${t.name}`, sub: 'Личное обучение', group: 'direct', peer: st.name };
-    return { title: st.name, sub: 'Личное обучение · ' + st.login, group: 'direct', peer: st.name };
+    const st = user(r.members[0]);
+    if (u.id === st.id) return { title: 'Чат с преподавателями', sub: 'Личное обучение', group: 'direct', peer: 'Чат с преподавателями' };
+    return { title: st.name, sub: 'Личное · ' + st.login + (r.archived ? ' · архив' : ''), group: 'direct', peer: st.name };
   }
   const num = (id) => Number(String(id).slice(1)) || 0;
   function unread(uid, roomId) {
@@ -214,7 +220,7 @@
     const pinId = db.pins[roomId];
     const pin = pinId ? db.messages.find((m) => m.id === pinId) : null;
     const room = db.rooms.find((x) => x.id === roomId); const u = user(uid);
-    const members = room.kind === 'direct' ? 2 : db.users.filter((x) => x.active && (room.kind === 'staff' ? x.role === 'teacher' : x.streams.some((s) => room.streams.includes(s)))).length;
+    const members = room.kind === 'direct' ? db.users.filter((x) => x.role !== 'admin' && inDirect(x, room)).length + 1 : db.users.filter((x) => x.active && (room.kind === 'staff' ? x.role === 'teacher' : x.streams.some((s) => room.streams.includes(s)))).length;
     return { messages: all.slice(start, end).map(decorateMsg), hasMore: start > 0, lastRead, pin: pin ? decorateMsg(pin) : null, room: { ...room, ...roomView(room, u), members, readOnly: (room.readOnlyFor || []).includes(u.role) } };
   }
   async function chatSend(uid, roomId, text, replyTo, file) {
@@ -244,7 +250,7 @@
   function simulateIncoming(uid) {
     const u = user(uid); const rooms = roomsFor(u);
     const r = rooms[Math.floor(Math.random() * rooms.length)];
-    const authors = db.users.filter((x) => x.id !== uid && x.active && x.role !== 'admin' && (r.kind === 'direct' ? r.members.includes(x.id) : r.kind === 'staff' ? x.role === 'teacher' : x.streams.some((s) => r.streams.includes(s))));
+    const authors = db.users.filter((x) => x.id !== uid && x.active && x.role !== 'admin' && (r.kind === 'direct' ? inDirect(x, r) : r.kind === 'staff' ? x.role === 'teacher' : x.streams.some((s) => r.streams.includes(s))));
     const a = authors[Math.floor(Math.random() * authors.length)];
     if (!a) return;
     const m = { id: 'm' + (Math.max(...db.messages.map((x) => num(x.id))) + 1), room: r.id, author: a.id, text: LIVE[Math.floor(Math.random() * LIVE.length)], at: Date.now(), replyTo: null, file: null, reactions: {} };
@@ -274,7 +280,7 @@
   function demoIncoming(uid, roomId) {
     const u = user(uid); const rooms = roomsFor(u);
     const r = rooms.find((x) => x.id === roomId) || rooms[0];
-    const authors = db.users.filter((x) => x.id !== uid && x.active && x.role !== 'admin' && (r.kind === 'direct' ? r.members.includes(x.id) : r.kind === 'staff' ? x.role === 'teacher' : x.streams.some((s) => r.streams.includes(s))));
+    const authors = db.users.filter((x) => x.id !== uid && x.active && x.role !== 'admin' && (r.kind === 'direct' ? inDirect(x, r) : r.kind === 'staff' ? x.role === 'teacher' : x.streams.some((s) => r.streams.includes(s))));
     const a = authors[Math.floor(Math.random() * authors.length)];
     const m = { id: 'm' + (Math.max(...db.messages.map((x) => num(x.id))) + 1), room: r.id, author: a.id, text: LIVE[Math.floor(Math.random() * LIVE.length)], at: Date.now(), replyTo: null, file: null, reactions: {} };
     db.messages.push(m); save();

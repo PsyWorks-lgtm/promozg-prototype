@@ -170,7 +170,7 @@ a.li:hover{background:var(--surface-2)}
 .pill.draft{background:var(--accent-soft);color:var(--accent-text)}
 .pill.blank,.pill.none{background:var(--surface-2);color:var(--text-2)}
 .badge{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--danger-fill);color:var(--text-on-danger);font-size:11px;font-weight:var(--fw-bold);display:inline-grid;place-items:center;line-height:1;flex:none;font-variant-numeric:tabular-nums}
-.badge.neutral{background:var(--accent);color:var(--text-on-accent)}
+.badge.neutral,.badge.quiet{background:var(--surface-3);color:var(--text-1)}
 .avatar{width:40px;height:40px;border-radius:50%;background:var(--surface-3);color:var(--text-2);display:inline-grid;place-items:center;font:var(--fw-bold) var(--fs-2) var(--font-display);flex:none}
 .avatar.sm{width:32px;height:32px;font-size:12px}.avatar.lg{width:56px;height:56px;font-size:var(--fs-4)}
 .avatar-sp{width:32px;flex:none}
@@ -398,3 +398,21 @@ blockquote.reply-q,.reply-q{display:block;margin:4px 0;padding:6px 10px;border-l
 .ax-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:var(--fs-2)}.ax-h time{font-size:var(--fs-1)}
 .ax-tools{gap:6px;align-items:center}.note-t{color:var(--text-2);background:var(--surface-2);padding:4px 10px;border-radius:8px}
 .note-f{display:flex;flex-direction:column;gap:8px}
+
+/* ---------- ревью волны 2: цели нажатия 44px, демо-панель, мелочи ---------- */
+.iconbtn.sm::after,.react::after{content:"";position:absolute;inset:-4px}
+.react{position:relative}.react::after{inset:-8px -2px}
+.emo-pop button{width:44px;height:44px}
+.t-chip .x{width:44px;height:44px;margin:-4px -6px -4px 0}
+.filters .seg>*,.filters .chip{min-height:44px}
+.ax-top .linkbtn,.link.hit{display:inline-flex;align-items:center;min-height:44px}
+.p-link{min-height:44px}
+.check{cursor:pointer}.check input{margin:0}
+.tag.sm{height:22px;padding:0 8px;font-size:11px;margin-left:6px;flex:none}
+.conseq{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+@media (max-width:899.98px){
+  .demo{right:auto;top:auto;left:8px;bottom:calc(64px + env(safe-area-inset-bottom))}
+  body:has(#app.tabbar-hidden) .demo,body:has(#app.no-shell) .demo{bottom:calc(8px + env(safe-area-inset-bottom))}
+  .demo:not(.open) .demo-fab{height:44px;padding:0 12px;opacity:.9}
+  .demo.open{max-height:min(70vh,560px)}
+}
