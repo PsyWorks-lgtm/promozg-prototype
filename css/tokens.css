@@ -1,0 +1,134 @@
+/* ProMozg · тема «Янтарь» · токены прототипа.
+   Светлая — :root, тёмная — :root.theme-dark-active. До загрузки JS — prefers-color-scheme. */
+
+@font-face { font-family: "Manrope"; src: url("../fonts/Manrope-var-cyr-lat.woff2") format("woff2"); font-weight: 500 800; font-display: swap; }
+@font-face { font-family: "Inter"; src: url("../fonts/Inter-var-cyr-lat.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Inter"; src: url("../fonts/Inter-Italic-var-cyr-lat.woff2") format("woff2"); font-weight: 400 600; font-style: italic; font-display: swap; }
+@font-face { font-family: "Literata"; src: url("../fonts/Literata-var-cyr-lat.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Literata"; src: url("../fonts/Literata-Italic-var-cyr-lat.woff2") format("woff2"); font-weight: 400 600; font-style: italic; font-display: swap; }
+
+:root {
+  color-scheme: light;
+  /* — типографика (общая с AXON) — */
+  --font-display: "Manrope", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-text: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-read: "Literata", Georgia, "Times New Roman", serif;           /* новое: длинное чтение */
+  --tracking-display: -0.025em; --tracking-caps: 0.06em;
+  --fs-1: 12px; --fs-2: 14px; --fs-3: 16px; --fs-4: 18px; --fs-5: 22px; --fs-6: 28px; --fs-7: 36px;
+  --lh-1: 16px; --lh-2: 20px; --lh-3: 24px; --lh-4: 26px; --lh-5: 28px; --lh-6: 34px; --lh-7: 40px;
+  --lh-read: 1.6;
+  --fs-read: 17px; --lh-read-px: 28px;                                   /* бумага, телефон */
+  --fs-read-lg: 19px; --lh-read-lg: 31px;                                /* бумага, ≥ 900px */
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
+  /* — отступы, сетка, размеры — */
+  --space-0: 0; --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px;
+  --gutter: 16px; --reading-width: 680px; --content-width: 1040px; --sidebar-w: 264px;
+  --hit-min: 44px; --control-h: 48px; --control-h-sm: 44px; --composer-min-h: 56px; --header-h: 56px;
+  --radius-xs: 6px; --radius-sm: 10px; --radius-md: 14px; --radius-lg: 18px; --radius-xl: 22px; --radius-full: 999px;
+
+  /* — цвета: светлая (theme-C-light) — */
+  --bg: #FAF7F2;
+  --surface-1: #FFFFFF;
+  --surface-2: #F1ECE3;
+  --surface-3: #E9E3D8;
+  --overlay: rgba(23,22,20,.44);
+  --text-1: #1A1712;
+  --text-2: #4D473E;
+  --text-3: #665F54;
+  --text-on-accent: #1A1104;
+  --text-on-danger: #FFFFFF;
+  --border: rgba(26,23,18,.10);
+  --border-strong: #8C8478;
+  --focus-ring: #9A5B00;
+  --accent: #E9A23B;
+  --accent-hover: #DE9628;
+  --accent-soft: #FBEFD9;
+  --accent-text: #9A5B00;
+  --danger: #B8233F; --danger-fill: #B8233F; --danger-soft: #FCEBEE; --danger-border: #EFB3BE;
+  --success: #2D7044; --success-soft: #E4F2E8;
+  --warning: #7F5A00; --warning-soft: #FAF0D8;
+  --mark-edge: rgba(26,17,4,.18);
+  --shadow-1: 0 1px 2px rgba(23,22,20,.06);
+  --shadow-2: 0 8px 24px -10px rgba(23,22,20,.18), 0 0 0 1px rgba(23,22,20,.06);
+  --shadow-3: 0 24px 60px -18px rgba(23,22,20,.28), 0 0 0 1px rgba(23,22,20,.06);
+  --glow-accent: 0 0 0 4px rgba(233,162,59,.16);
+
+  /* — «бумага» для модулей и книги: всегда светлая — */
+  --paper-desk: #EFE9DF;        /* стол вокруг листа (десктоп) */
+  --paper: #FFFDF8;             /* лист */
+  --ink-1: #1F1A14;             /* основной текст */
+  --ink-2: #4D473E;             /* подписи, лиды */
+  --ink-3: #6A6257;             /* служебное: номера, сноски */
+  --ink-link: #9A5B00;
+  --paper-rule: rgba(31,26,20,.12);
+  --paper-mark: #FBEFD9;        /* выделение, подсветка поиска */
+  --paper-quote: #E9A23B;       /* полоса цитаты / «главное» */
+  --paper-bar: rgba(255,253,248,.96);
+
+  /* — алиасы старых переменных app.css (шаг 1 рестайла) — */
+  --bg-soft: var(--surface-2);
+  --panel: var(--surface-1);
+  --line: var(--border);
+  --text: var(--text-1);
+  --muted: var(--text-2);
+  --accent-dark: var(--accent-text);
+  --font-ui: var(--font-text);
+  --radius-pill: var(--radius-full);
+  --shadow: var(--shadow-2);
+  --chat-v2-bg: var(--bg);
+  --chat-v2-panel: var(--surface-1);
+  --chat-v2-text: var(--text-1);
+  --chat-v2-muted: var(--text-2);
+  --chat-v2-line: var(--border);
+  --chat-v2-accent: var(--accent);
+}
+
+/* тёмная (theme-C) */
+:root.theme-dark-active {
+  color-scheme: dark;
+  --bg: #0A0A0B;
+  --surface-1: #131315;
+  --surface-2: #1C1C1F;
+  --surface-3: #26262A;
+  --overlay: rgba(0,0,0,.62);
+  --text-1: #F5F3EF;
+  --text-2: #BAB7B0;
+  --text-3: #94918A;
+  --border: rgba(255,255,255,.08);
+  --border-strong: #6B6963;
+  --focus-ring: #F4B54A;
+  --accent: #F4B54A;
+  --accent-hover: #F8C873;
+  --accent-soft: #22190B;
+  --accent-text: #F4B54A;
+  --danger: #FF7C8A; --danger-fill: #D7354F; --danger-soft: #241217; --danger-border: #7A2A36;
+  --success: #7FD3A6; --success-soft: #11241B;
+  --warning: #E7D36A; --warning-soft: #262212;
+  --mark-edge: transparent;
+  --shadow-1: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-2: 0 8px 24px -8px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.06);
+  --shadow-3: 0 24px 64px -16px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.07);
+  --glow-accent: 0 0 0 4px rgba(244,181,74,.16);
+  /* бумага в тёмной теме не темнеет, а приглушается, чтобы не слепить ночью */
+  --paper-desk: #0A0A0B;
+  --paper: #EFE7DA;
+  --ink-1: #1A1611;
+  --ink-2: #463F35;
+  --ink-3: #5C5449;
+  --ink-link: #8A5100;
+  --paper-rule: rgba(26,22,17,.14);
+  --paper-mark: #F3DDB0;
+  --paper-bar: rgba(19,19,21,.96);
+}
+
+/* до запуска JS: «как на телефоне». Класс theme-light-active ставит applyTheme() при ручном выборе «Светлая». */
+@media (prefers-color-scheme: dark) {
+  :root:not(.theme-light-active):not(.theme-dark-active) {
+    color-scheme: dark;
+    --bg: #0A0A0B; --surface-1: #131315; --surface-2: #1C1C1F; --surface-3: #26262A;
+    --text-1: #F5F3EF; --text-2: #BAB7B0; --text-3: #94918A;
+    --border: rgba(255,255,255,.08); --accent: #F4B54A; --accent-text: #F4B54A;
+  }
+}

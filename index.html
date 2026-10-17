@@ -1,1 +1,43 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>ProMozg — прототип</title></head><body style="font-family:system-ui;background:#1a1410;color:#f3e6d3;display:grid;place-items:center;min-height:100vh;margin:0"><p>Прототип ProMozg скоро будет здесь.</p></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#FAF7F2">
+<meta name="description" content="Кликабельный прототип кабинета ProMozg. Все имена и данные вымышлены.">
+<title>ProMozg · Кабинет · прототип</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%23E9A23B%22/%3E%3Cpath d=%22M11 24V8h6.2c3.6 0 5.8 2 5.8 5s-2.2 5.1-5.8 5.1H14.6V24z%22 fill=%22%231A1104%22/%3E%3C/svg%3E">
+<link rel="preload" href="fonts/Inter-var-cyr-lat.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/Manrope-var-cyr-lat.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/app.css">
+<script>
+  /* тема до первой отрисовки, чтобы не мигало */
+  (function () { try { var s = JSON.parse(localStorage.getItem('promozg-proto-session-v1') || '{}'); var t = s.theme || 'auto';
+    var d = t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.add(d ? 'theme-dark-active' : 'theme-light-active'); } catch (e) {} })();
+  window.PM = {};
+</script>
+</head>
+<body>
+<div id="app"><noscript>Для прототипа нужен JavaScript.</noscript></div>
+<script src="js/core/dom.js"></script>
+<script src="js/ui/icons.js"></script>
+<script src="js/mock/seed.js"></script>
+<script src="js/mock/content.js"></script>
+<script src="js/mock/api.js"></script>
+<script src="js/core/store.js"></script>
+<script src="js/core/router.js"></script>
+<script src="js/ui/parts.js"></script>
+<script src="js/ui/shell.js"></script>
+<script src="js/ui/demo.js"></script>
+<script src="js/screens/common.js"></script>
+<script src="js/screens/home.js"></script>
+<script src="js/screens/course.js"></script>
+<script src="js/screens/homework.js"></script>
+<script src="js/screens/chat.js"></script>
+<script src="js/screens/review.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
