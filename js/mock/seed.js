@@ -24,8 +24,8 @@
       U('alina', 'a.frolova', 'Алина Фролова', 'student', [S2], { lastSeen: ago(2) }),
       U('irina', 'i.smirnova', 'Инна Смирнова', 'student', [S2], { lastSeen: ago(50) }),
       U('oleg', 'o.panov', 'Олег Панов', 'student', [S2], { lastSeen: ago(60 * 9) }),
-      U('nvet1', 'n.vetrova', 'Наталья Ветрова', 'student', [S1], { lastSeen: ago(60 * 24 * 2) }),
-      U('nvet2', 'natalia.v', 'Наталья Ветрова', 'student', [S3], { lastSeen: ago(60 * 24 * 1) }),
+      U('nvet1', 'o.vetrova', 'Ольга Ветрова', 'student', [S1], { lastSeen: ago(60 * 24 * 2) }),
+      U('nvet2', 'olga.v', 'Ольга Ветрова', 'student', [S3], { lastSeen: ago(60 * 24 * 1) }),
       U('maxim', 'm.gurov', 'Максим Гуров', 'student', [S1], { lastSeen: ago(60 * 24 * 19) }),
       U('ksenia', 'k.demina', 'Ксения Дёмина', 'student', [S2], { lastSeen: ago(60 * 3) }),
       U('pavel', 'p.ershov', 'Павел Ершов', 'student', [S3], { lastSeen: ago(60 * 24 * 16) }),
@@ -169,7 +169,7 @@
     ];
 
     return {
-      version: 11, streams, users, modules, homeworkDefs, homework: hw, rooms, messages, pins, reads,
+      version: 12, streams, users, modules, homeworkDefs, homework: hw, rooms, messages, pins, reads,
       axon, axonMemory, library, librarySections,
       drafts: { alina: { 3: { answers: { q1: 'Черновик: ситуация из практики, начало описания…', q2: 'Шаг 1 — ' }, step: 1, savedAt: NOW - DAY, checklist: [true, false, false] } } },
       reading: { alina: { kind: 'module', n: 3, part: 2, progress: 0.4 }, alinaBook: { ch: 4, progress: 0.31 } },

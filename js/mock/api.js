@@ -2,12 +2,12 @@
    Методы асинхронные и с задержкой, чтобы были видны состояния загрузки. */
 (function (PM) {
   'use strict';
-  const KEY = 'promozg-proto-db-v11';
+  const KEY = 'promozg-proto-db-v12';
   const listeners = {};
   let db = load();
 
   function load() {
-    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.version === 11) return s; } catch (_) { /* пусто */ }
+    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.version === 12) return s; } catch (_) { /* пусто */ }
     return PM.seed();
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (_) { /* переполнено — игнорируем в демо */ } }
