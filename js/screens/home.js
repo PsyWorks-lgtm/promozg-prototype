@@ -16,24 +16,16 @@
     return html`${ui.header({ title: 'Главная', chips: ui.streamChips(d.streams) })}
     <div class="page home">
       <div class="hello"><span class="t2 faint">${fmt.weekday()}</span><h2 class="page-h">${fmt.greeting()}, ${me.name.split(' ')[0]}</h2></div>
-      <div class="home-grid">
-        <div class="col gap4">
+      <div class="home-grid student-grid ${room ? '' : 'no-room'}">
           ${empty ? html`<section class="card hero"><h3>Начните с модуля 1</h3><p class="t2 muted">Модуль открывается на светлой «бумаге», к нему есть задание.</p><a class="btn primary" href="#/s/module/1">Открыть модуль 1</a></section>` : html`
           <section class="card hero" aria-labelledby="h-cont"><div class="caps">Продолжить</div>
             <h3 id="h-cont">${mod.title}</h3><div class="t2 muted">Часть ${r.part} из ${mod.parts} · ${Math.round(r.progress * 100)}%</div>
             <div class="progress-line" aria-hidden="true"><i style="width:${Math.round(r.progress * 100)}%"></i></div>
             <a class="btn primary" href="#/s/module/${r.n}?part=${r.part}">Продолжить чтение</a></section>`}
-          <section class="card axon-card" aria-labelledby="h-axon"><div class="row">${PM.axonMark(28)}<div class="grow"><h3 id="h-axon">AXON</h3><div class="t2 muted">Личный помощник по курсу</div></div><a class="iconbtn" href="#/s/axon" aria-label="История разговоров">${icon('clock', 'sm')}</a></div>
-            <form class="composer" data-act="ask"><input class="grow" name="q" aria-label="Спросить AXON" placeholder="Спросить AXON…" autocomplete="off"><button class="send" aria-label="Отправить">${icon('up', 'sm')}</button></form>
-            <div class="chips">${PM.content.axonSuggestions.map((s) => html`<a class="chip" href="#/s/axon?q=${encodeURIComponent(s)}">${s}</a>`)}</div>
-            ${d.lastAxon ? html`<a class="row cont-link" href="#/s/axon/${d.lastAxon.id}"><span class="t2 faint">Продолжить:</span><span class="t2 grow ellipsis">${d.lastAxon.title}</span><span class="t1 faint">${fmt.short(d.lastAxon.at)}</span>${icon('right', 'sm')}</a>` : ''}</section>
-        </div>
-        <div class="col gap4">
-          <section class="card"><div class="row card-h"><h3 class="grow">Домашки</h3><a class="t2 link" href="#/s/homework">Все 8</a></div>
+          <section class="card home-hw"><div class="row card-h"><h3 class="grow">Домашки</h3><a class="t2 link" href="#/s/homework">Все 8</a></div>
             ${hwRows.length ? html`<div class="col">${hwRows.map(({ m, st }) => html`<a class="mini-row" href="#/s/homework/${m.n}"><span class="grow"><b class="t2">${m.short}</b><small class="faint">${st === 'draft' ? 'черновик сохранён' : st === 'pending' ? 'ждёт проверки' : st === 'accepted' ? 'проверено' : 'есть комментарий'}</small></span>${ui.pill(st)}</a>`)}</div>` : html`<p class="t2 muted">Пока ничего не отправлено.</p>`}</section>
-          ${room ? html`<a class="card link-card" href="#/s/chat/${room.id}"><div class="row">${individual ? ui.avatar(room.title) : html`<span class="ic-box">${icon('chat', 'sm')}</span>`}<div class="grow"><h3>${individual ? 'Мой преподаватель' : room.title}</h3><div class="t2 muted ellipsis">${room.last ? `${room.last.author}: ${room.last.text}` : 'Здесь ваша переписка с преподавателем'}</div></div>${room.unread ? html`<span class="badge neutral">${room.unread}</span>` : ''}</div></a>` : ''}
-          <a class="card link-card" href="#/s/book?ch=${(d.bookReading || {}).ch || 1}"><div class="row"><span class="book-cover sm" aria-hidden="true">${PM.pmMark(20)}<b>АНП 2.0</b></span><div class="grow"><div class="caps">Книга курса</div><h3>АНП 2.0</h3><div class="t2 muted">Глава ${(d.bookReading || {}).ch || 1} · ${Math.round(((d.bookReading || {}).progress || 0) * 100)}%</div></div>${icon('right', 'sm')}</div></a>
-        </div>
+          ${room ? html`<a class="card link-card home-chat" href="#/s/chat/${room.id}"><div class="row">${individual ? ui.avatar(room.title) : html`<span class="ic-box">${icon('chat', 'sm')}</span>`}<div class="grow"><h3>${individual ? 'Мой преподаватель' : room.title}</h3><div class="t2 muted ellipsis">${room.last ? `${room.last.author}: ${room.last.text}` : 'Здесь ваша переписка с преподавателем'}</div></div>${room.unread ? html`<span class="badge neutral">${room.unread}</span>` : ''}${icon('right', 'sm')}</div></a>` : ''}
+          <a class="card link-card home-book" href="#/s/book?ch=${(d.bookReading || {}).ch || 1}"><div class="row"><span class="book-cover sm" aria-hidden="true">${PM.pmMark(20)}<b>АНП 2.0</b></span><div class="grow"><div class="caps">Книга курса</div><h3>АНП 2.0</h3><div class="t2 muted">Глава ${(d.bookReading || {}).ch || 1} · ${Math.round(((d.bookReading || {}).progress || 0) * 100)}%</div></div>${icon('right', 'sm')}</div></a>
       </div>
     </div>`;
   }
@@ -84,7 +76,6 @@
     view: (ctx) => (ctx.me.role === 'student' ? studentHome(ctx) : ctx.me.role === 'teacher' ? teacherHome(ctx) : adminHome(ctx)),
     mount(root, ctx) {
       const offs = [];
-      offs.push(on(root, 'submit', '[data-act="ask"]', (e, f) => { e.preventDefault(); const q = f.q.value.trim(); if (q) location.hash = '#/s/axon?q=' + encodeURIComponent(q); }));
       if (S.notif) offs.push(S.notif.bind(root, () => { const b = $('[data-banner]', root); if (b) b.remove(); }));
       return () => offs.forEach((f) => f());
     },

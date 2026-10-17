@@ -32,6 +32,11 @@
     if (st.length > 1) { st.pop(); const prev = st[st.length - 1]; sessionStorage.setItem(STACK, JSON.stringify(st)); location.hash = prev; }
     else location.hash = fallback || '#/home';
   }
+  /* Экран-перенаправление (список чатов → конкретный чат) не должен оставаться в стеке, иначе «назад» зациклится */
+  function forget(full) {
+    const st = stack();
+    if (st[st.length - 1] === full) { st.pop(); sessionStorage.setItem(STACK, JSON.stringify(st)); }
+  }
   const go = (h) => { if (location.hash === h) PM.app.render(); else location.hash = h; };
-  PM.router = { add, parse, remember, back, go, stack };
+  PM.router = { add, parse, remember, back, forget, go, stack };
 })(window.PM);

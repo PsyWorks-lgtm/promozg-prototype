@@ -37,9 +37,10 @@
     mount(root, ctx) {
       // ученик личного обучения сразу попадает в диалог с преподавателем; на десктопе — открываем первый чат
       const d = ctx.data;
-      if (d.individual) { location.replace(`#/s/chat/${d.rooms.find((r) => r.group === 'direct').id}`); return null; }
+      if (d.individual) { PM.router.forget(ctx.route.full); location.replace(`#/s/chat/${d.rooms.find((r) => r.group === 'direct').id}`); return null; }
       if (matchMedia('(min-width: 900px)').matches && !ctx.route.path.endsWith('/personal') && d.rooms.length) {
         const r = d.rooms.slice().sort((a, b) => b.unread - a.unread)[0];
+        PM.router.forget(ctx.route.full);
         location.replace(`#/${P()}/chat/${r.id}`);
       }
       return null;
@@ -80,7 +81,8 @@
 
   S.chatRoom = {
     nav: (r) => (r.params.room.startsWith('dm-') && PM.store.me() && PM.store.me().role === 'teacher' ? 'personal' : 'chat'),
-    tabbar: () => matchMedia('(min-width: 900px)').matches,
+    // у ученика личного обучения этот чат — раздел «Мой преподаватель» в нижнем меню, поэтому меню остаётся видно
+    tabbar: (r) => { const me = PM.store.me(); return matchMedia('(min-width: 900px)').matches || !!(me && me.role === 'student' && r.params.room.startsWith('dm-')); },
     skeleton: () => html`<div class="chat-layout"><aside class="rooms-pane only-d">${ui.skeletonList(4)}</aside><section class="chat-pane">${ui.header({ title: 'Чат', back: '#/' })}<div class="feed">${ui.skeletonList(5)}</div></section></div>`,
     load: async (ctx) => {
       const [rooms, h] = await Promise.all([PM.api.chatRooms(ctx.me.id), PM.api.chatHistory(ctx.me.id, ctx.route.params.room)]);
@@ -97,7 +99,7 @@
       return html`<div class="chat-layout">
         ${individual ? '' : html`<aside class="rooms-pane only-d">${roomList(d.rooms, r.id, me)}</aside>`}
         <section class="chat-pane" aria-label="${r.title}">
-          ${ui.header({ title: individual ? 'Мой преподаватель' : r.title, sub: individual ? r.title + ' · личное обучение' : sub, back: individual ? null : `#/${P()}/chat/rooms` })}
+          ${ui.header({ title: individual ? 'Мой преподаватель' : r.title, sub: individual ? r.title + ' · личное обучение' : sub, back: individual ? '#/s/home' : `#/${P()}/chat/rooms` })}
           <div data-pin>${pinHTML(d.pin)}</div>
           <div class="feed" data-feed role="log" aria-live="polite" aria-relevant="additions" tabindex="0" aria-label="Сообщения">
             <div class="feed-top" data-top>${d.hasMore ? html`<span class="t2 faint" data-more-label>Прокрутите вверх, чтобы загрузить раньше</span>` : html`<span class="t2 faint">Начало переписки</span>`}</div>
