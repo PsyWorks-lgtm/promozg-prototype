@@ -236,7 +236,7 @@ a.li:hover{background:var(--surface-2)}
 .sticky-in{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:12px}
 .sticky-bar .submit-err{max-width:760px;margin:6px auto 0}
 .save-state{color:var(--text-3)}.save-state.err{color:var(--danger)}
-@media (max-width:520px){.sticky-in{flex-wrap:wrap}.sticky-in .btn{width:100%}.sticky-in .grow{display:none}}
+@media (max-width:520px){.sticky-in{flex-wrap:wrap}.sticky-in .save-state{width:100%}.sticky-in .btn{flex:1 1 140px;padding:0 12px}.sticky-in .grow{display:none}}
 blockquote.reply-q,.reply-q{display:block;margin:4px 0;padding:6px 10px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--surface-2) 70%,transparent);border-radius:0 8px 8px 0;font-size:var(--fs-2);line-height:var(--lh-2)}
 .steps{margin:6px 0;padding-left:20px}.steps .ico{vertical-align:-4px}
 
@@ -416,3 +416,12 @@ blockquote.reply-q,.reply-q{display:block;margin:4px 0;padding:6px 10px;border-l
   .demo:not(.open) .demo-fab{height:44px;padding:0 12px;opacity:.9}
   .demo.open{max-height:min(70vh,560px)}
 }
+
+.react.ro{display:inline-flex;align-items:center}
+.local-note{gap:10px;align-items:center;flex-direction:row}.local-note>.ico{color:var(--accent-text);flex:none}
+/* лента чата: реальная область нажатия 44×44 (замер getBoundingClientRect), визуал прежний */
+.msg-acts .iconbtn.sm{width:44px;height:44px}
+.reacts{gap:0;margin:-4px 0 -8px -8px}
+.react,.react.ro{height:44px;min-width:44px;padding:0 8px;border:8px solid transparent;border-radius:22px;background:var(--surface-1);background-clip:padding-box;box-shadow:inset 0 0 0 1px var(--border);display:inline-flex;align-items:center;justify-content:center}
+.react.on{border-color:transparent;background:var(--accent-soft);background-clip:padding-box;box-shadow:inset 0 0 0 1px var(--accent)}
+.react::after{content:none}

@@ -2,16 +2,16 @@
    Методы асинхронные и с задержкой, чтобы были видны состояния загрузки. */
 (function (PM) {
   'use strict';
-  const KEY = 'promozg-proto-db-v12';
+  const KEY = 'promozg-proto-db-v13';
   const listeners = {};
   let db = load();
 
   function load() {
-    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.version === 12) return s; } catch (_) { /* пусто */ }
+    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.version === 13) return s; } catch (_) { /* пусто */ }
     return PM.seed();
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (_) { /* переполнено — игнорируем в демо */ } }
-  function reset() { db = PM.seed(); save(); emit('reset', {}); }
+  function reset() { db = PM.seed(); save(); try { localStorage.removeItem('promozg-proto-device-reading-v1'); } catch (_) { /* пусто */ } emit('reset', {}); }
 
   function on(type, fn) { (listeners[type] = listeners[type] || []).push(fn); return () => { listeners[type] = listeners[type].filter((f) => f !== fn); }; }
   function emit(type, payload) { (listeners[type] || []).forEach((fn) => { try { fn(payload); } catch (e) { console.error(e); } }); }
@@ -69,20 +69,24 @@
   /* ---------- курс ---------- */
   async function modules(uid) {
     await lat();
-    return db.modules.map((m) => ({ ...m, locked: m.opensAt && m.opensAt > Date.now(), hw: m.hasHomework ? hwStatus(uid, m.n) : 'none' }));
+    return db.modules.map((m) => ({ ...m, unpublished: !m.published, hw: m.hasHomework ? hwStatus(uid, m.n) : 'none' }));
   }
   async function module(uid, n) {
     await lat();
     const m = db.modules.find((x) => x.n === n);
     if (!m) throw new ApiError(404, 'Модуль не найден');
-    if (m.opensAt && m.opensAt > Date.now()) throw new ApiError(423, 'Модуль откроется ' + PM.dom.fmt.day(m.opensAt));
+    if (!m.published) throw new ApiError(404, 'Материал пока не опубликован');
     return { ...m, hw: m.hasHomework ? hwStatus(uid, n) : 'none', sections: PM.content.moduleSections(n) };
   }
   async function book() { await lat(); return { title: 'АНП 2.0', chapters: PM.content.bookChapters(db.modules) }; }
-  function reading(uid) { return db.reading[uid] || null; }
-  function bookReading(uid) { return db.reading[uid + 'Book'] || null; }
-  function saveReading(uid, pos) { db.reading[uid] = { ...pos, at: Date.now() }; save(); }
-  function saveBookReading(uid, pos) { db.reading[uid + 'Book'] = { ...pos, at: Date.now() }; save(); }
+  /* Место чтения — только на этом устройстве (localStorage браузера), на сервер не уходит и не синхронизируется */
+  const DEV = 'promozg-proto-device-reading-v1';
+  const devGet = () => { try { const v = JSON.parse(localStorage.getItem(DEV)); if (v) return v; } catch (_) { /* пусто */ } return { alina: { kind: 'module', n: 3, part: 2, progress: 0.4 }, alinaBook: { ch: 4, progress: 0.31 } }; };
+  const devSet = (k, v) => { const d = devGet(); d[k] = v; try { localStorage.setItem(DEV, JSON.stringify(d)); } catch (_) { /* пусто */ } };
+  function reading(uid) { return devGet()[uid] || null; }
+  function bookReading(uid) { return devGet()[uid + 'Book'] || null; }
+  function saveReading(uid, pos) { devSet(uid, { ...pos, at: Date.now() }); }
+  function saveBookReading(uid, pos) { devSet(uid + 'Book', { ...pos, at: Date.now() }); }
 
   /* ---------- домашки ученика ---------- */
   async function homeworkList(uid) {
@@ -90,12 +94,13 @@
     return db.modules.map((m) => {
       const it = db.homework.find((h) => h.student === uid && h.module === m.n);
       const dr = db.drafts[uid] && db.drafts[uid][m.n];
-      return { module: m, locked: m.opensAt && m.opensAt > Date.now(), hasTask: m.hasHomework, item: it ? clone(it) : null, draft: dr ? clone(dr) : null, status: m.hasHomework ? hwStatus(uid, m.n) : 'none' };
+      return { module: m, unpublished: !m.published, hasTask: m.hasHomework, item: it ? clone(it) : null, draft: dr ? clone(dr) : null, status: m.hasHomework ? hwStatus(uid, m.n) : 'none' };
     });
   }
   async function homework(uid, n) {
     await lat();
     const m = db.modules.find((x) => x.n === n);
+    if (!m || !m.published) throw new ApiError(404, 'Материал пока не опубликован');
     const it = db.homework.find((h) => h.student === uid && h.module === n);
     if (it && it.reviewedAt && !it.seen) { it.seen = true; save(); emit('counts', {}); }
     return { module: m, def: db.homeworkDefs[n] || null, item: it ? clone(it) : null, draft: clone((db.drafts[uid] || {})[n] || null), reviewer: it && it.reviewer ? user(it.reviewer).name : null };
@@ -137,12 +142,14 @@
       return u.role === 'admin' || u.role === 'teacher';
     });
   }
+  /* Работы без даты сдачи (перенесённые старые) — первыми в очереди */
+  const sentKey = (h) => (h.sentAt == null ? -1 : h.sentAt);
   async function reviewQueue(uid, f = 'pending') {
     await lat();
     const u = user(uid);
     const by = { pending: queueItems(u, 'pending'), revision: queueItems(u, 'revision'), accepted: queueItems(u, 'accepted') };
-    const decorate = (h) => { const s = user(h.student); const st = s.streams[0]; return { ...clone(h), studentName: s.name, stream: stream(st).label, streamId: st, orphan: !activeTeachers(st).length, waitDays: PM.dom.fmt.waitDays(h.sentAt), reviewerName: h.reviewer ? user(h.reviewer).name : null }; };
-    const list = by[f].map(decorate).sort((a, b) => f === 'pending' ? a.sentAt - b.sentAt : (b.reviewedAt || 0) - (a.reviewedAt || 0));
+    const decorate = (h) => { const s = user(h.student); const st = s.streams[0]; return { ...clone(h), studentName: s.name, stream: stream(st).label, streamId: st, orphan: !activeTeachers(st).length, waitDays: h.sentAt ? PM.dom.fmt.waitDays(h.sentAt) : null, reviewerName: h.reviewer ? user(h.reviewer).name : null }; };
+    const list = by[f].map(decorate).sort((a, b) => f === 'pending' ? sentKey(a) - sentKey(b) : (b.reviewedAt || 0) - (a.reviewedAt || 0));
     return { list, counts: { pending: by.pending.length, revision: by.revision.length, accepted: by.accepted.length } };
   }
   async function reviewItem(id) {
@@ -152,7 +159,7 @@
     const s = user(h.student);
     const st = s.streams[0];
     const others = db.modules.map((m) => ({ n: m.n, status: m.hasHomework ? hwStatus(s.id, m.n) : 'none' }));
-    const pendingIds = db.homework.filter((x) => x.status === 'pending').sort((a, b) => a.sentAt - b.sentAt).map((x) => x.id);
+    const pendingIds = db.homework.filter((x) => x.status === 'pending').sort((a, b) => sentKey(a) - sentKey(b)).map((x) => x.id);
     return { item: clone(h), def: db.homeworkDefs[h.module], module: db.modules.find((m) => m.n === h.module), student: { id: s.id, name: s.name, stream: stream(st).label }, orphan: !activeTeachers(st).length, others, reviewerName: h.reviewer ? user(h.reviewer).name : null, queue: pendingIds };
   }
   async function decide(uid, id, decision, comment) {
@@ -239,7 +246,9 @@
   }
   function chatPin(roomId, msgId) { db.pins[roomId] = db.pins[roomId] === msgId ? null : msgId; save(); emit('pin', { room: roomId }); }
   function chatReact(uid, msgId, emoji) {
-    const m = db.messages.find((x) => x.id === msgId); const arr = (m.reactions[emoji] = m.reactions[emoji] || []);
+    const m = db.messages.find((x) => x.id === msgId);
+    if (m.author === uid) return clone(m.reactions); // реакции на свои сообщения не ставятся
+    const arr = (m.reactions[emoji] = m.reactions[emoji] || []);
     const i = arr.indexOf(uid); if (i >= 0) arr.splice(i, 1); else arr.push(uid);
     if (!arr.length) delete m.reactions[emoji];
     save(); return clone(m.reactions);
@@ -264,13 +273,13 @@
   async function demoSubmit(count = 1) {
     const cands = [];
     db.users.filter((u) => u.role === 'student' && u.active && u.id !== 'alina').forEach((u) => db.modules.forEach((m) => {
-      if (!(m.opensAt && m.opensAt > Date.now()) && !db.homework.find((h) => h.student === u.id && h.module === m.n)) cands.push([u.id, m.n]);
+      if (m.published && !db.homework.find((h) => h.student === u.id && h.module === m.n)) cands.push([u.id, m.n]);
     }));
     const out = [];
     for (let i = 0; i < count && cands.length; i++) {
       const [uid, n] = cands.splice(Math.floor(Math.random() * Math.min(cands.length, 12)), 1)[0];
       const def = db.homeworkDefs[n];
-      const answers = {}; def.questions.forEach((q) => { answers[q.id] = 'Ответ ученика (пример) на «' + q.title.replace(/^Часть \d+\. /, '') + '».'; });
+      const answers = def ? {} : { text: 'Ответ ученика (пример) одним текстом.' }; (def ? def.questions : []).forEach((q) => { answers[q.id] = 'Ответ ученика (пример) на «' + q.title.replace(/^Часть \d+\. /, '') + '».'; });
       const saveNet = flags.netFail; flags.netFail = false;
       out.push(await submitHomework(uid, n, { answers, checklist: [true, true, true] }));
       flags.netFail = saveNet;
@@ -333,11 +342,9 @@
     const u = user(uid);
     const out = { user: clone(u), streams: u.streams.map((s) => stream(s).label), counts: counts(uid) };
     if (u.role === 'student') {
-      out.reading = reading(uid);
-      out.bookReading = bookReading(uid);
       out.hwItems = db.homework.filter((h) => h.student === uid).map(clone);
       out.drafts = clone(db.drafts[uid] || {});
-      out.modules = db.modules.map((m) => ({ ...m, locked: m.opensAt && m.opensAt > Date.now(), hw: m.hasHomework ? hwStatus(uid, m.n) : 'none' }));
+      out.modules = db.modules.map((m) => ({ ...m, unpublished: !m.published, hw: m.hasHomework ? hwStatus(uid, m.n) : 'none' }));
       out.lastAxon = (db.axon[uid] || []).slice().sort((a, b) => b.at - a.at)[0] || null;
       out.rooms = await chatRooms(uid);
     }

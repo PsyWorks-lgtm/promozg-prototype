@@ -11,7 +11,7 @@
     return html`<div class="list qlist">${list.map((h) => html`<a class="li qrow" href="#/${p}/review/${h.id}">
       ${ui.avatar(h.studentName)}
       <span class="grow"><b class="ttl">${h.studentName}</b><span class="sub">Модуль ${h.module} · ${h.stream}${h.orphan ? html` · <span class="warn-t">нет преподавателя</span>` : ''}</span></span>
-      <span class="q-meta">${h.status === 'pending' ? ui.waitPill(h.waitDays) : ui.pill(h.status)}<small class="faint only-d">${h.status === 'pending' ? 'отправлено ' + fmt.day(h.sentAt) : (h.reviewerName ? h.reviewerName.split(' ')[0] + ', ' : '') + fmt.day(h.reviewedAt)}</small></span>${icon('right', 'sm chev')}</a>`)}</div>`;
+      <span class="q-meta">${h.status === 'pending' ? ui.waitPill(h.waitDays) : ui.pill(h.status)}<small class="faint only-d">${h.status === 'pending' ? (h.sentAt ? 'отправлено ' + fmt.day(h.sentAt) : '') : (h.reviewerName ? h.reviewerName.split(' ')[0] + ', ' : '') + fmt.day(h.reviewedAt) + (h.status === 'accepted' && h.sentAt == null ? ' · дата сдачи неизвестна' : '')}</small></span>${icon('right', 'sm chev')}</a>`)}</div>`;
   }
 
   S.reviewQueue = {
@@ -55,16 +55,16 @@
       const d = ctx.data; const h = d.item; const p = P();
       const done = h.status === 'accepted';
       const pos = d.queue.indexOf(h.id);
-      return html`${ui.header({ title: `${d.student.name} · модуль ${h.module}`, sub: `${d.student.stream} · отправлено ${fmt.dayTime(h.sentAt)}`, back: `#/${p}/review` })}
+      return html`${ui.header({ title: `${d.student.name} · модуль ${h.module}`, sub: `${d.student.stream} · ${h.sentAt ? 'отправлено ' + fmt.dayTime(h.sentAt) : 'дата сдачи неизвестна'}`, back: `#/${p}/review` })}
       <div class="page review-grid">
         <div class="col gap4">
-          ${h.status === 'pending' ? html`<div class="row wrap" style="gap:8px">${ui.waitPill(fmt.waitDays(h.sentAt))}${pos >= 0 ? html`<span class="t2 faint">${pos + 1} из ${d.queue.length} в очереди</span>` : ''}${d.orphan ? html`<span class="pill revision">в потоке нет активного преподавателя</span>` : ''}</div>` : ''}
+          ${h.status === 'pending' ? html`<div class="row wrap" style="gap:8px">${ui.waitPill(h.sentAt ? fmt.waitDays(h.sentAt) : null)}${pos >= 0 ? html`<span class="t2 faint">${pos + 1} из ${d.queue.length} в очереди</span>` : ''}${d.orphan ? html`<span class="pill revision">в потоке нет активного преподавателя</span>` : ''}</div>` : ''}
           ${done ? html`<div class="card ok"><div class="row">${icon('check')}<b class="grow">Работа принята · ${fmt.day(h.reviewedAt)}</b></div><div class="t2 muted">Проверено: ${d.reviewerName}. Принятую работу ученик не отправит заново, решение можно только посмотреть.</div>${h.comment ? html`<blockquote class="reply-q">${h.comment}</blockquote>` : ''}</div>` : ''}
           ${h.status === 'revision' ? html`<div class="card warn"><b>Возвращено на доработку · ${fmt.day(h.reviewedAt)}</b><blockquote class="reply-q">${h.comment}</blockquote><div class="t2 muted">Ждём новую версию от ученика.</div></div>` : ''}
           ${h.prevComment ? html`<div class="card"><div class="caps">Прошлый комментарий</div><p class="t2">${h.prevComment}</p></div>` : ''}
-          <p class="t2 muted">${d.def.goal}</p>
+          ${d.def ? html`<p class="t2 muted">${d.def.goal}</p>
           ${d.def.questions.map((q) => html`<section class="card"><div class="caps">${q.title.split('.')[0]}</div><h3>${q.title.replace(/^Часть \d+\. /, '')}</h3><p class="answer">${(h.answers || {})[q.id] || '—'}</p></section>`)}
-          <section class="card"><h3>Самопроверка ученика</h3>${d.def.checklist.map((c, i) => html`<div class="check ro">${icon((h.checklist || [])[i] ? 'check' : 'x', 'sm')} ${c}</div>`)}</section>
+          <section class="card"><h3>Самопроверка ученика</h3>${d.def.checklist.map((c, i) => html`<div class="check ro">${icon((h.checklist || [])[i] ? 'check' : 'x', 'sm')} ${c}</div>`)}</section>` : html`<section class="card"><div class="caps">Ответ</div><p class="t2 faint">У модуля нет описания задания, ученик отвечал одним текстом.</p><p class="answer">${(h.answers || {}).text || '—'}</p></section>`}
           ${h.file ? html`<section class="card file-row"><div class="row">${icon('file')}<span class="grow t2">${h.file.name} · ${fmt.size(h.file.size)}</span><button class="btn ghost sm" data-act="open-file">Открыть</button></div></section>` : ''}
         </div>
         <aside class="col gap4 review-side">

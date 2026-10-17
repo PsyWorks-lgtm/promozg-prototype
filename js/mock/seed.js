@@ -42,16 +42,17 @@
     ];
     const studentsOf = (st) => users.filter((u) => u.role === 'student' && u.streams.includes(st));
 
-    /* Модули — единый каталог для книги, курса и домашек. 7 и 8 закрыты до 12.11. */
-    const opens = D('2026-11-12T10:00:00');
+    /* Модули — единый каталог для книги, курса и домашек. Открываются только публикацией: 7 и 8 пока не опубликованы (без дат). */
     const modules = Array.from({ length: 8 }, (_, i) => ({
       n: i + 1, title: `Модуль ${i + 1} · Тема модуля ${i + 1}`, short: `Модуль ${i + 1}`,
-      parts: 4, minutes: 18 + ((i * 7) % 15), opensAt: i >= 6 ? opens : null, hasHomework: true,
+      parts: 4, minutes: 18 + ((i * 7) % 15), published: i < 6, hasHomework: true,
     }));
 
     /* Задания: 4 части-заглушки на модуль */
     const homeworkDefs = {};
+    // у модуля 6 описания задания нет — ученик отвечает в одном текстовом поле
     modules.forEach((m) => {
+      if (m.n === 6) return;
       homeworkDefs[m.n] = {
         goal: 'Цель задания — текст-заглушка. Здесь коротко сказано, что проверяет работа и в каком виде её сдавать.',
         questions: [
@@ -68,12 +69,14 @@
     const hw = [];
     let hid = 100;
     const answers = () => ({ q1: 'Ответ ученика (пример). Ситуация описана подробно, с примером из практики: что произошло, кто участвовал, что было заметно.', q2: 'Шаг 1 — наблюдение. Шаг 2 — гипотеза. Шаг 3 — проверка на следующей встрече.', q3: 'Выбран приём из модуля: он короткий, его легко повторить, и результат видно сразу.', q4: 'Стало понятнее, как отличать описание от механизма и что проверять после встречи.' });
-    const add = (student, n, status, sentAt, extra = {}) => hw.push({ id: 'hw' + (hid++), student, module: n, status, answers: answers(), checklist: [true, true, status === 'accepted'], file: null, sentAt, reviewedAt: null, reviewer: null, comment: '', versions: 1, ...extra });
+    const add = (student, n, status, sentAt, extra = {}) => hw.push({ id: 'hw' + (hid++), student, module: n, status, answers: n === 6 ? { text: 'Ответ ученика (пример) одним текстом: что сделано по модулю, какой пример разобран и какой вывод получился.' } : answers(), checklist: [true, true, status === 'accepted'], file: null, sentAt, reviewedAt: null, reviewer: null, comment: '', versions: 1, ...extra });
     const acc = (s, n, daysAgo, reviewer) => add(s, n, 'accepted', NOW - daysAgo * DAY, { reviewedAt: NOW - (daysAgo - 2) * DAY, reviewer, seen: true, comment: 'Хорошая работа: пример конкретный, шаги логичные. Можно двигаться дальше.' });
     acc('alina', 1, 30, 'belova');
     [['irina', [1, 2, 3, 4, 5]], ['oleg', [1, 2, 3, 4]], ['ksenia', [1, 2, 3, 4, 5, 6]], ['nvet1', [1, 2, 3]], ['nvet2', [1, 2, 3, 4]], ['timur', [1, 2, 3]], ['maxim', [1, 2, 3]]]
       .forEach(([s, ns]) => ns.forEach((n) => acc(s, n, 160 - n * 12 + s.length, s === 'nvet1' || s === 'maxim' ? 'zaitsev' : pick(['belova', 'kim', 'sokolova', 'lebedev']))));
     while (hw.filter((h) => h.status === 'accepted').length > 29) hw.pop();
+    // две старые принятые работы перенесены без даты сдачи: в истории «Дата сдачи неизвестна»
+    ['irina', 'oleg'].forEach((s) => { const h = hw.find((x) => x.student === s && x.module === 1); if (h) h.sentAt = null; });
     add('oleg', 5, 'revision', NOW - 27 * DAY, { reviewedAt: NOW - 25 * DAY, reviewer: 'kim', seen: true, comment: 'В части 2 не хватает шагов: опишите, что именно вы проверите на следующей встрече.' });
     add('timur', 4, 'revision', NOW - 18 * DAY, { reviewedAt: NOW - 16 * DAY, reviewer: 'orlova', seen: true, comment: 'Вывод слишком общий. Добавьте один конкретный пример.' });
     add('darya', 4, 'pending', NOW - 12 * DAY, { file: { name: 'схема-случая.pdf', size: 412000 } });   // Поток 1 — без проверяющего
@@ -169,10 +172,9 @@
     ];
 
     return {
-      version: 12, streams, users, modules, homeworkDefs, homework: hw, rooms, messages, pins, reads,
+      version: 13, streams, users, modules, homeworkDefs, homework: hw, rooms, messages, pins, reads,
       axon, axonMemory, library, librarySections,
       drafts: { alina: { 3: { answers: { q1: 'Черновик: ситуация из практики, начало описания…', q2: 'Шаг 1 — ' }, step: 1, savedAt: NOW - DAY, checklist: [true, false, false] } } },
-      reading: { alina: { kind: 'module', n: 3, part: 2, progress: 0.4 }, alinaBook: { ch: 4, progress: 0.31 } },
       notifications: { belova: 'default', kim: 'on', alina: 'on', admin: 'on' },
       pendingPush: {},
       _studentsOf: null,

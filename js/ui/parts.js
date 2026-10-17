@@ -10,6 +10,7 @@
   };
   const pill = (status) => { const [c, l] = HW[status] || HW.empty; return html`<span class="pill ${c}">${l}</span>`; };
   const waitPill = (days) => {
+    if (days == null) return html`<span class="pill blank">Дата сдачи неизвестна</span>`;
     const c = days > 7 ? 'revision' : days > 2 ? 'pending' : 'draft';
     return html`<span class="pill ${c}" title="Отправлено ${days} ${plural(days, ['день', 'дня', 'дней'])} назад">${days === 0 ? 'сегодня' : `ждёт ${days} дн.`}</span>`;
   };

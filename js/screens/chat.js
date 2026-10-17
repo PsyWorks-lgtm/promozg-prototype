@@ -66,11 +66,11 @@
             ${m.text ? html`<div class="txt">${m.text}</div>` : ''}
             <time class="tm" datetime="${new Date(m.at).toISOString()}">${fmt.time(m.at)}</time>
           </div>
-          ${reacts.length ? html`<div class="reacts">${reacts.map(([e, u]) => html`<button class="react ${u.includes(me.id) ? 'on' : ''}" data-react="${e}" aria-pressed="${u.includes(me.id)}" aria-label="${e} ${u.length}">${e} ${u.length}</button>`)}</div>` : ''}
+          ${reacts.length ? html`<div class="reacts">${reacts.map(([e, u]) => html`${mine ? html`<span class="react ro" aria-label="${e} ${u.length}">${e} ${u.length}</span>` : html`<button class="react ${u.includes(me.id) ? 'on' : ''}" data-react="${e}" aria-pressed="${u.includes(me.id)}" aria-label="${e} ${u.length}">${e} ${u.length}</button>`}`)}</div>` : ''}
         </div>
         <div class="msg-acts" role="group" aria-label="Действия с сообщением">
           <button class="iconbtn sm" data-act="reply" aria-label="Ответить">${icon('reply', 'sm')}</button>
-          <button class="iconbtn sm" data-act="react-menu" aria-label="Реакция">${icon('smile', 'sm')}</button>
+          ${mine ? '' : html`<button class="iconbtn sm" data-act="react-menu" aria-label="Реакция">${icon('smile', 'sm')}</button>`}
           ${opts.canPin ? html`<button class="iconbtn sm" data-act="pin" aria-label="Закрепить">${icon('pin', 'sm')}</button>` : ''}
         </div>
       </div>`;

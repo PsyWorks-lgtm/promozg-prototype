@@ -14,10 +14,10 @@
       return html`${ui.header({ title: 'Курс', sub: 'АНП 2.0' })}
       <div class="page">
         <a class="card link-card book-card" href="#/${p}/book?ch=${br.ch}"><span class="book-cover" aria-hidden="true">${PM.pmMark(28)}<b>АНП 2.0</b></span>
-          <span class="grow"><span class="caps">Книга курса</span><h3>АНП 2.0</h3><span class="t2 muted">Продолжить с главы ${br.ch} · ${Math.round(br.progress * 100)}%</span></span>${icon('right', 'sm')}</a>
+          <span class="grow"><span class="caps">Книга курса</span><h3>АНП 2.0</h3><span class="t2 muted">Продолжить с главы ${br.ch} · ${Math.round(br.progress * 100)}% · на этом устройстве</span></span>${icon('right', 'sm')}</a>
         <div class="sec-h"><h2>Модули</h2><a href="#/${p}/library">Библиотека</a></div>
-        <div class="list">${ctx.data.map((m) => m.locked
-          ? html`<div class="li locked" aria-disabled="true"><span class="num">${icon('lock', 'sm')}</span><span class="grow"><b class="ttl">${m.title}</b><span class="sub">Откроется ${fmt.day(m.opensAt)}</span></span></div>`
+        <div class="list">${ctx.data.map((m) => m.unpublished
+          ? html`<div class="li locked" aria-disabled="true"><span class="num">${icon('clock', 'sm')}</span><span class="grow"><b class="ttl">${m.title}</b><span class="sub">Материал пока не опубликован</span></span></div>`
           : html`<a class="li" href="#/${p}/module/${m.n}"><span class="num">${m.n}</span><span class="grow"><b class="ttl">${m.title}</b><span class="sub">${m.parts} ${PM.dom.plural(m.parts, ['часть', 'части', 'частей'])} · ≈ ${m.minutes} мин</span></span>${p === 's' && m.hw !== 'none' ? ui.pill(m.hw) : ''}${icon('right', 'sm chev')}</a>`)}</div>
       </div>`;
     },
@@ -94,7 +94,7 @@
       const m = ctx.data; const p = P(); const part = +(ctx.route.query.part || 1);
       const secs = m.sections.map((s, i) => ({ ...s, h1: i === 0 ? m.title : null }));
       const toc = html`<div class="caps toc-h">${m.short}</div>${secs.map((s) => html`<a href="#${s.id}" data-goto="${s.id}">${s.title}</a>`)}`;
-      const next = m.n < 8 ? html`<a class="btn secondary" href="#/${p}/module/${m.n + 1}">Следующий модуль ${icon('right', 'sm')}</a>` : '';
+      const nx = PM.api.db.modules.find((x) => x.n === m.n + 1); const next = nx && nx.published ? html`<a class="btn secondary" href="#/${p}/module/${m.n + 1}">Следующий модуль ${icon('right', 'sm')}</a>` : '';
       const footer = html`<div class="paper-end">${p === 's' && m.hw !== 'none' ? html`<div class="row wrap" style="gap:10px"><a class="btn primary" href="#/s/homework/${m.n}">Перейти к заданию модуля</a>${ui.pill(m.hw)}</div>` : ''}${next}<p class="t1 ink3">Текст-заглушка. В кабинете здесь будет текст модуля из книги.</p></div>`;
       return reader({ ctx, title: m.title, kicker: `${m.short} из 8 · ≈ ${m.minutes} мин`, toc, sections: secs, footer, backFallback: `#/${p}/course` });
     },

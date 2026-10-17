@@ -169,7 +169,7 @@
     await lat();
     const d = db(); const c = A.counts('admin');
     const pend = d.homework.filter((h) => h.status === 'pending');
-    const oldest = pend.length ? Math.max(...pend.map((h) => PM.dom.fmt.waitDays(h.sentAt))) : 0;
+    const dated = pend.filter((h) => h.sentAt); const oldest = dated.length ? Math.max(...dated.map((h) => PM.dom.fmt.waitDays(h.sentAt))) : 0;
     const noTeacher = d.streams.filter((s) => !s.hidden && !d.users.some((u) => u.role === 'teacher' && u.active && u.streams.includes(s.code)));
     const stale = d.users.filter((u) => u.role === 'student' && u.active && Date.now() - u.lastSeen > STALE);
     const ax = axData().convs.filter((v) => v.at >= Date.now() - 7 * DAY);
