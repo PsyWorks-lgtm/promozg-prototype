@@ -6,6 +6,9 @@
   const S = PM.screens;
   const P = () => PM.shell.prefix(PM.store.me().role);
   const EMO = ['👍', '❤️', '🙏', '😊'];
+  /* телефон (hover:none): кнопка «⋯» и долгое нажатие по пузырю открывают нижнее меню действий */
+  const TOUCH = () => matchMedia('(hover: none)').matches;
+  const SKIP_LP = 'a,button,input,textarea,[data-jump],.file-chip,.react';
   const GROUPS = [['direct', 'Личное'], ['stream', 'Чаты потоков'], ['staff', 'Команда']];
 
   function roomList(rooms, activeId, me) {
@@ -68,11 +71,12 @@
           </div>
           ${reacts.length ? html`<div class="reacts">${reacts.map(([e, u]) => html`${mine ? html`<span class="react ro" aria-label="${e} ${u.length}">${e} ${u.length}</span>` : html`<button class="react ${u.includes(me.id) ? 'on' : ''}" data-react="${e}" aria-pressed="${u.includes(me.id)}" aria-label="${e} ${u.length}">${e} ${u.length}</button>`}`)}</div>` : ''}
         </div>
-        <div class="msg-acts" role="group" aria-label="Действия с сообщением">
+        <div class="msg-acts" id="acts-${m.id}" role="group" aria-label="Действия с сообщением">
           <button class="iconbtn sm" data-act="reply" aria-label="Ответить">${icon('reply', 'sm')}</button>
           ${mine ? '' : html`<button class="iconbtn sm" data-act="react-menu" aria-label="Реакция">${icon('smile', 'sm')}</button>`}
           ${opts.canPin ? html`<button class="iconbtn sm" data-act="pin" aria-label="Закрепить">${icon('pin', 'sm')}</button>` : ''}
         </div>
+        <button class="iconbtn msg-more" data-act="msg-more" aria-label="Действия с сообщением" aria-haspopup="dialog">${icon('more', 'sm')}</button>
       </div>`;
   }
   function pinHTML(pin) {
@@ -193,6 +197,78 @@
         const tmp = document.createElement('div'); tmp.innerHTML = String(msgHTML(m, me, messages[i - 1], { canPin, unreadBefore: null }));
         msg.replaceWith(tmp.querySelector('.msg'));
       }));
+
+      // телефон: нижнее меню действий (bottom sheet)
+      let sheetOpen = false; let lpTimer = null; let lpFired = false;
+      const clearLp = () => { clearTimeout(lpTimer); lpTimer = null; };
+      function openSheet(msg, viaLongPress) {
+        if (sheetOpen || !msg) return;
+        const openedAt = Date.now();
+        const id = msg.dataset.id; const m = messages.find((x) => x.id === id); if (!m) return;
+        const mine = m.author === me.id; const opener = msg.querySelector('[data-act="msg-more"]');
+        const host = $('#modal-root'); sheetOpen = true;
+        setHTML(host, html`<div class="overlay" data-sh="x"></div>
+          <div class="modal sheet act-sheet" role="dialog" aria-modal="true" aria-label="Действия с сообщением">
+            <span class="sheet-grip" aria-hidden="true"></span>
+            <div class="sheet-list">
+              <button class="sheet-item" data-sh="reply">${icon('reply', 'sm')}Ответить</button>
+              ${mine ? '' : html`<button class="sheet-item" data-sh="react-menu">${icon('smile', 'sm')}Реакция</button>`}
+              ${canPin ? html`<button class="sheet-item" data-sh="pin">${icon('pin', 'sm')}Закрепить</button>` : ''}
+              ${m.text ? html`<button class="sheet-item" data-sh="copy">${icon('copy', 'sm')}Копировать</button>` : ''}
+              <button class="sheet-item cancel" data-sh="x">Отмена</button>
+            </div></div>`);
+        const sh = $('.act-sheet', host);
+        const close = (act) => {
+          if (!sheetOpen) return; sheetOpen = false;
+          document.removeEventListener('keydown', key); setHTML(host, ''); host.onclick = null;
+          if (opener && opener.isConnected) opener.focus({ preventScroll: true });
+          if (act === 'copy') {
+            const done = () => PM.shell.toast('Скопировано');
+            try { navigator.clipboard.writeText(m.text).then(done, done); } catch (_) { done(); }
+          } else if (act) {
+            const b = msg.querySelector(`.msg-acts [data-act="${act}"]`); if (b) b.click();
+          }
+        };
+        const key = (e) => {
+          if (e.key === 'Escape') { e.preventDefault(); close(null); }
+          if (e.key === 'Tab') {
+            const fs = $$('button', sh); const i = fs.indexOf(document.activeElement);
+            if (e.shiftKey && i <= 0) { e.preventDefault(); fs[fs.length - 1].focus(); } else if (!e.shiftKey && i === fs.length - 1) { e.preventDefault(); fs[0].focus(); }
+          }
+        };
+        document.addEventListener('keydown', key);
+        host.onclick = (e) => {
+          const t = e.target.closest('[data-sh]'); if (!t) return;
+          // запасной вариант к preventDefault на touchend: первый клик по фону сразу после долгого нажатия игнорируем
+          if (viaLongPress && t.classList.contains('overlay') && Date.now() - openedAt < 700) return;
+          close(t.dataset.sh === 'x' ? null : t.dataset.sh);
+        };
+        // свайп вниз > 60px закрывает
+        let y0 = null, dy = 0;
+        sh.addEventListener('touchstart', (e) => { y0 = e.touches[0].clientY; dy = 0; sh.style.transition = 'none'; }, { passive: true });
+        sh.addEventListener('touchmove', (e) => { if (y0 == null) return; dy = Math.max(0, e.touches[0].clientY - y0); sh.style.transform = `translateY(${dy}px)`; }, { passive: true });
+        sh.addEventListener('touchend', () => { sh.style.transition = ''; if (dy > 60) close(null); else sh.style.transform = ''; y0 = null; });
+        $('button', sh).focus();
+      }
+      offs.push(on(root, 'click', '[data-act="msg-more"]', (e, b) => openSheet(b.closest('.msg'))));
+      const lpTarget = (e) => { if (!TOUCH()) return null; const b = e.target.closest('.bubble'); if (!b || !list.contains(b) || e.target.closest(SKIP_LP)) return null; return b.closest('.msg'); };
+      const onTouchStart = (e) => {
+        clearLp(); lpFired = false; const msg = lpTarget(e); if (!msg) return;
+        lpTimer = setTimeout(() => { lpTimer = null; lpFired = true; openSheet(msg, true); }, 450);
+      };
+      // после долгого нажатия гасим синтетический клик, иначе он попадёт в фон и закроет меню
+      const onTouchEnd = (e) => { clearLp(); if (lpFired) { lpFired = false; if (e.cancelable) e.preventDefault(); } };
+      const onCtx = (e) => { if (TOUCH() && e.target.closest('.bubble')) e.preventDefault(); };
+      list.addEventListener('touchstart', onTouchStart, { passive: true });
+      ['touchmove', 'touchcancel'].forEach((t) => list.addEventListener(t, clearLp, { passive: true }));
+      list.addEventListener('touchend', onTouchEnd);
+      list.addEventListener('contextmenu', onCtx);
+      offs.push(() => {
+        clearLp(); list.removeEventListener('touchstart', onTouchStart);
+        ['touchmove', 'touchcancel'].forEach((t) => list.removeEventListener(t, clearLp)); list.removeEventListener('touchend', onTouchEnd);
+        list.removeEventListener('contextmenu', onCtx);
+        if (sheetOpen) { sheetOpen = false; setHTML($('#modal-root'), ''); }
+      });
 
       // поле ввода
       const form = $('[data-composer]', root);

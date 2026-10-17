@@ -426,3 +426,18 @@ blockquote.reply-q,.reply-q{display:block;margin:4px 0;padding:6px 10px;border-l
 .react.on{border-color:transparent;background:var(--accent-soft);background-clip:padding-box;box-shadow:inset 0 0 0 1px var(--accent)}
 .react::after{content:none}
 .toc span.ch{display:block;padding:8px 12px;min-height:36px;color:var(--text-3)}
+/* «⋯» и нижнее меню действий с сообщением — только на устройствах без наведения */
+.msg-more{display:none}
+@media (hover:none){
+  .msg-acts{display:none}
+  .msg-more{display:inline-grid;align-self:center;color:var(--text-3);margin:0 -6px}
+  .bubble{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+}
+.act-sheet{padding:8px 12px calc(12px + env(safe-area-inset-bottom));transition:transform .15s}
+.sheet-grip{display:block;width:36px;height:4px;border-radius:2px;background:var(--border-strong,var(--border));margin:4px auto 8px}
+.sheet-list{display:flex;flex-direction:column}
+.sheet-item{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 12px;border:0;background:none;border-radius:12px;font:inherit;font-size:var(--fs-3);color:var(--text-1);text-align:left}
+.sheet-item:hover,.sheet-item:focus-visible{background:var(--surface-2)}
+.sheet-item.cancel{justify-content:center;margin-top:4px;border-top:1px solid var(--border);border-radius:0 0 12px 12px;color:var(--text-2)}
+@media (max-width:640px){.act-sheet{padding-bottom:calc(12px + env(safe-area-inset-bottom))}}
+body:has(.act-sheet) .demo{display:none}
